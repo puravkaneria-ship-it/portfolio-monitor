@@ -9,22 +9,39 @@
     var PASS = "northcastle2024";
     var KEY  = "ncp_auth";
     if (sessionStorage.getItem(KEY) === PASS) return;
+    var css = [
+      "#authOverlay{position:fixed;inset:0;z-index:99999;background:#0c0c0c;display:flex;align-items:center;justify-content:center;font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;}",
+      "#authCard{width:360px;padding:52px 44px;border:1px solid #222;background:#111;display:flex;flex-direction:column;align-items:center;gap:0;}",
+      "#authMark{width:36px;height:36px;border:2px solid #b8860b;display:flex;align-items:center;justify-content:center;margin-bottom:28px;}",
+      "#authMark span{color:#b8860b;font-size:14px;font-weight:700;letter-spacing:.05em;}",
+      "#authFirm{color:#b8860b;font-size:10px;font-weight:600;letter-spacing:.22em;text-transform:uppercase;margin-bottom:6px;}",
+      "#authTitle{color:#fff;font-size:17px;font-weight:600;letter-spacing:-.01em;margin-bottom:2px;}",
+      "#authSub{color:#555;font-size:11px;letter-spacing:.04em;text-transform:uppercase;margin-bottom:36px;}",
+      "#authDivider{width:100%;height:1px;background:#1e1e1e;margin-bottom:28px;}",
+      "#authInput{width:100%;padding:11px 14px;border:1px solid #2a2a2a;border-radius:3px;background:#0a0a0a;color:#fff;font-size:13px;font-family:inherit;outline:none;box-sizing:border-box;transition:border-color .15s;}",
+      "#authInput:focus{border-color:#b8860b;}",
+      "#authBtn{margin-top:12px;width:100%;padding:11px;background:#b8860b;color:#fff;border:none;border-radius:3px;font-size:13px;font-weight:600;cursor:pointer;letter-spacing:.04em;transition:background .15s;}",
+      "#authBtn:hover{background:#a07808;}",
+      "#authErr{margin-top:14px;color:#7f1d1d;font-size:11px;min-height:14px;letter-spacing:.01em;}"
+    ].join("");
+    var style = document.createElement("style"); style.textContent = css; document.head.appendChild(style);
     document.addEventListener("DOMContentLoaded", function(){
-      var overlay = document.createElement("div");
-      overlay.id = "authOverlay";
-      overlay.style.cssText = "position:fixed;inset:0;z-index:99999;background:#111;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:16px;";
-      overlay.innerHTML = [
-        '<div style="color:#b8860b;font-size:11px;letter-spacing:.15em;text-transform:uppercase;font-family:Inter,-apple-system,sans-serif;">North Castle Partners</div>',
-        '<div style="color:#fff;font-size:18px;font-weight:600;font-family:Inter,-apple-system,sans-serif;">Portfolio Monitor</div>',
-        '<input id="authInput" type="password" placeholder="Enter password" style="margin-top:8px;padding:10px 16px;border:1px solid #333;border-radius:6px;background:#1a1a1a;color:#fff;font-size:14px;width:240px;outline:none;" />',
-        '<button id="authBtn" style="padding:10px 32px;background:#b8860b;color:#fff;border:none;border-radius:6px;font-size:14px;font-weight:600;cursor:pointer;width:240px;">Enter</button>',
-        '<div id="authErr" style="color:#991b1b;font-size:12px;min-height:16px;"></div>'
-      ].join("");
+      var overlay = document.createElement("div"); overlay.id = "authOverlay";
+      overlay.innerHTML = '<div id="authCard">'
+        + '<div id="authMark"><span>NCP</span></div>'
+        + '<div id="authFirm">North Castle Partners</div>'
+        + '<div id="authTitle">Portfolio Monitor</div>'
+        + '<div id="authSub">Restricted Access</div>'
+        + '<div id="authDivider"></div>'
+        + '<input id="authInput" type="password" placeholder="Password" autocomplete="current-password" />'
+        + '<button id="authBtn">Enter</button>'
+        + '<div id="authErr"></div>'
+        + '</div>';
       document.body.appendChild(overlay);
       function attempt(){
         var v = document.getElementById("authInput").value;
         if (v === PASS){ sessionStorage.setItem(KEY, PASS); overlay.remove(); }
-        else { document.getElementById("authErr").textContent = "Incorrect password."; }
+        else { document.getElementById("authErr").textContent = "Incorrect password — try again."; document.getElementById("authInput").select(); }
       }
       document.getElementById("authBtn").addEventListener("click", attempt);
       document.getElementById("authInput").addEventListener("keydown", function(e){ if(e.key==="Enter") attempt(); });
@@ -180,6 +197,7 @@
   <div>
     <div class="brand"><span class="firm" id="firmNameLabel">North Castle Partners</span> — Portfolio Monitor</div>
     <div class="sub" id="firmSub">Fund III • USD, $M • Demo data — replace via Tab 7 (Data Lab)</div>
+    <div style="margin-top:4px;font-size:12px;color:var(--ink);font-weight:600;letter-spacing:.01em"><span id="headerFMV" style="color:var(--accent)"></span><span id="headerFMVlabel" style="color:var(--muted);font-weight:400;margin-left:4px"></span></div>
   </div>
   <div class="right">
     <span class="pill" id="asOfPill">As of —</span>
@@ -2326,6 +2344,14 @@ function applyHeader(){
   document.getElementById("asOfPill").textContent = "As of " + state.settings.asof;
   document.getElementById("sourcePill").textContent = "Source: " + state.source;
   document.title = `${state.settings.firm} — Portfolio Monitor (${n})`;
+  const f = fundRollup();
+  if (f.fmv > 0) {
+    document.getElementById("headerFMV").textContent = fmtMshort(f.fmv);
+    document.getElementById("headerFMVlabel").textContent = "Total Portfolio Value";
+  } else {
+    document.getElementById("headerFMV").textContent = "";
+    document.getElementById("headerFMVlabel").textContent = "";
+  }
 }
 
 /* ============================================================
