@@ -12,16 +12,16 @@
     var css = [
       "#authOverlay{position:fixed;inset:0;z-index:99999;background:#0c0c0c;display:flex;align-items:center;justify-content:center;font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;}",
       "#authCard{width:360px;padding:52px 44px;border:1px solid #222;background:#111;display:flex;flex-direction:column;align-items:center;gap:0;}",
-      "#authMark{width:36px;height:36px;border:2px solid #b8860b;display:flex;align-items:center;justify-content:center;margin-bottom:28px;}",
-      "#authMark span{color:#b8860b;font-size:14px;font-weight:700;letter-spacing:.05em;}",
-      "#authFirm{color:#b8860b;font-size:10px;font-weight:600;letter-spacing:.22em;text-transform:uppercase;margin-bottom:6px;}",
+      "#authMark{width:36px;height:36px;border:2px solid #4a90c4;display:flex;align-items:center;justify-content:center;margin-bottom:28px;}",
+      "#authMark span{color:#4a90c4;font-size:14px;font-weight:700;letter-spacing:.05em;}",
+      "#authFirm{color:#4a90c4;font-size:10px;font-weight:600;letter-spacing:.22em;text-transform:uppercase;margin-bottom:6px;}",
       "#authTitle{color:#fff;font-size:17px;font-weight:600;letter-spacing:-.01em;margin-bottom:2px;}",
       "#authSub{color:#555;font-size:11px;letter-spacing:.04em;text-transform:uppercase;margin-bottom:36px;}",
       "#authDivider{width:100%;height:1px;background:#1e1e1e;margin-bottom:28px;}",
       "#authInput{width:100%;padding:11px 14px;border:1px solid #2a2a2a;border-radius:3px;background:#0a0a0a;color:#fff;font-size:13px;font-family:inherit;outline:none;box-sizing:border-box;transition:border-color .15s;}",
-      "#authInput:focus{border-color:#b8860b;}",
-      "#authBtn{margin-top:12px;width:100%;padding:11px;background:#b8860b;color:#fff;border:none;border-radius:3px;font-size:13px;font-weight:600;cursor:pointer;letter-spacing:.04em;transition:background .15s;}",
-      "#authBtn:hover{background:#a07808;}",
+      "#authInput:focus{border-color:#4a90c4;}",
+      "#authBtn{margin-top:12px;width:100%;padding:11px;background:#1e3a5f;color:#fff;border:none;border-radius:3px;font-size:13px;font-weight:600;cursor:pointer;letter-spacing:.04em;transition:background .15s;}",
+      "#authBtn:hover{background:#162d4a;}",
       "#authErr{margin-top:14px;color:#7f1d1d;font-size:11px;min-height:14px;letter-spacing:.01em;}"
     ].join("");
     var style = document.createElement("style"); style.textContent = css; document.head.appendChild(style);
@@ -64,9 +64,9 @@
 </script>
 <style>
   :root{
-    /* Executive palette — black / white / muted gold */
-    --bg:#ffffff; --panel:#ffffff; --panel-2:#fafafa; --ink:#111111; --muted:#6b7280;
-    --line:#e5e5e5; --accent:#b8860b; --accent-2:#d4a64a; --warn:#b45309; --bad:#991b1b; --good:#166534;
+    /* North Castle Partners palette — white / black / navy / sky blue */
+    --bg:#ffffff; --panel:#ffffff; --panel-2:#f8f9fb; --ink:#0f1114; --muted:#6b7280;
+    --line:#e2e6ea; --accent:#1e3a5f; --accent-2:#4a90c4; --warn:#b45309; --bad:#991b1b; --good:#166534;
     --chip:#f5f5f5;
     --grid-line:#f1f1f1;
     --shadow: 0 1px 3px rgba(0,0,0,.04), 0 1px 2px rgba(0,0,0,.06);
@@ -128,7 +128,7 @@
   .row-link{cursor:pointer}
   .badge{display:inline-block;padding:2px 8px;border-radius:999px;font-size:11px;font-weight:600}
   .badge.out{background:rgba(22,163,74,.10);color:var(--good)}
-  .badge.on{background:rgba(74,144,226,.12);color:var(--accent)}
+  .badge.on{background:rgba(30,58,95,.10);color:var(--accent)}
   .badge.und{background:rgba(217,119,6,.12);color:var(--warn)}
   .badge.dis{background:rgba(220,38,38,.12);color:var(--bad)}
   .num{font-variant-numeric:tabular-nums}
@@ -956,7 +956,7 @@ function renderOverviewCharts(){
     bySectorInv[p.sector] = (bySectorInv[p.sector]||0)+p.invested;
   });
   // Grayscale ramp with single gold accent — executive minimal
-  const palette = ["#111111","#525252","#737373","#a3a3a3","#d4d4d4","#b8860b"];
+  const palette = ["#1e3a5f","#4a90c4","#6b7280","#93c5e8","#c8d8e8","#0f2a47"];
 
   chart("chSectorFMV", {
     type:"doughnut",
@@ -1280,7 +1280,7 @@ function renderOpsKPIs(){
   function color(col, v){
     if(v==null||isNaN(v)) return "#2a3461";
     const pos = (col===5) ? (v<24?1:-1) : (v>=0?1:-1);
-    if(col===4 && v!=null){ return v>=110?"#16a34a":v>=100?"#b8860b":v>=95?"#f59e0b":"#dc2626"; }
+    if(col===4 && v!=null){ return v>=110?"#16a34a":v>=100?"#1e3a5f":v>=95?"#f59e0b":"#dc2626"; }
     if(col===5 && v!=null){ return v<=18?"#16a34a":v<=24?"#f59e0b":"#dc2626"; }
     const mag = Math.min(1, Math.abs(v)/(col===0?500:60));
     if(pos>0){ return `rgba(123,227,196,${0.25+mag*0.6})`; }
@@ -1359,7 +1359,7 @@ function renderOpsKPIs(){
         label: "Portfolio companies",
         data: saas.map(p=>({x: p.nrr, y: p.cacPayback, r: Math.max(10, Math.min(28, Math.sqrt(p.curRev||1)*1.8)), name: p.name, rev: p.curRev||0})),
         backgroundColor: saas.map(p => p.nrr>=110 ? "rgba(184,134,11,.30)" : "rgba(17,17,17,.18)"),
-        borderColor: saas.map(p => p.nrr>=110 ? "#b8860b" : "#111111"),
+        borderColor: saas.map(p => p.nrr>=110 ? "#4a90c4" : "#1e3a5f"),
         borderWidth: 1.2
       }]},
       options:{
