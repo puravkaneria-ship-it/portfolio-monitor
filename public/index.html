@@ -4,6 +4,34 @@
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>Portfolio Monitor — North Castle Partners (Demo)</title>
+<script>
+  (function(){
+    var PASS = "northcastle2024";
+    var KEY  = "ncp_auth";
+    if (sessionStorage.getItem(KEY) === PASS) return;
+    document.addEventListener("DOMContentLoaded", function(){
+      var overlay = document.createElement("div");
+      overlay.id = "authOverlay";
+      overlay.style.cssText = "position:fixed;inset:0;z-index:99999;background:#111;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:16px;";
+      overlay.innerHTML = [
+        '<div style="color:#b8860b;font-size:11px;letter-spacing:.15em;text-transform:uppercase;font-family:Inter,-apple-system,sans-serif;">North Castle Partners</div>',
+        '<div style="color:#fff;font-size:18px;font-weight:600;font-family:Inter,-apple-system,sans-serif;">Portfolio Monitor</div>',
+        '<input id="authInput" type="password" placeholder="Enter password" style="margin-top:8px;padding:10px 16px;border:1px solid #333;border-radius:6px;background:#1a1a1a;color:#fff;font-size:14px;width:240px;outline:none;" />',
+        '<button id="authBtn" style="padding:10px 32px;background:#b8860b;color:#fff;border:none;border-radius:6px;font-size:14px;font-weight:600;cursor:pointer;width:240px;">Enter</button>',
+        '<div id="authErr" style="color:#991b1b;font-size:12px;min-height:16px;"></div>'
+      ].join("");
+      document.body.appendChild(overlay);
+      function attempt(){
+        var v = document.getElementById("authInput").value;
+        if (v === PASS){ sessionStorage.setItem(KEY, PASS); overlay.remove(); }
+        else { document.getElementById("authErr").textContent = "Incorrect password."; }
+      }
+      document.getElementById("authBtn").addEventListener("click", attempt);
+      document.getElementById("authInput").addEventListener("keydown", function(e){ if(e.key==="Enter") attempt(); });
+      document.getElementById("authInput").focus();
+    });
+  })();
+</script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js" onerror="window.__cdnFail='chartjs'"></script>
 <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js" onerror="window.__cdnFail=(window.__cdnFail||'')+',papaparse'"></script>
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js" onerror="window.__cdnFail=(window.__cdnFail||'')+',xlsx'"></script>
