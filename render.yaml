@@ -1,0 +1,30 @@
+# Render configuration — static site deploy
+# Docs: https://render.com/docs/yaml-spec
+services:
+  - type: web
+    name: north-castle-monitor
+    runtime: static
+    buildCommand: ""              # no build step — the HTML is already final
+    staticPublishPath: ./public   # Render serves everything under /public
+
+    # Optional: add a custom 404 fallback so deep links don't 404
+    # routes:
+    #   - type: rewrite
+    #     source: /*
+    #     destination: /index.html
+
+    headers:
+      # cache static assets aggressively; the html file is small enough that
+      # forcing fresh loads (no-cache) makes sense for an evolving dashboard
+      - path: /*
+        name: Cache-Control
+        value: "no-cache, must-revalidate"
+      - path: /*
+        name: X-Content-Type-Options
+        value: "nosniff"
+      - path: /*
+        name: Referrer-Policy
+        value: "no-referrer-when-downgrade"
+
+    # Render auto-detects pushes to the connected branch. Default is 'main'.
+    branch: main

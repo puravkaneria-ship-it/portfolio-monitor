@@ -1,0 +1,2387 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Portfolio Monitor — North Castle Partners (Demo)</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js" onerror="window.__cdnFail='chartjs'"></script>
+<script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js" onerror="window.__cdnFail=(window.__cdnFail||'')+',papaparse'"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js" onerror="window.__cdnFail=(window.__cdnFail||'')+',xlsx'"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js" onerror="window.__cdnFail=(window.__cdnFail||'')+',pdfjs'"></script>
+<script>
+  // configure PDF.js worker once it's loaded
+  if (window['pdfjsLib']) {
+    window.pdfjsLib.GlobalWorkerOptions.workerSrc =
+      "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
+  }
+</script>
+<style>
+  :root{
+    /* Executive palette — black / white / muted gold */
+    --bg:#ffffff; --panel:#ffffff; --panel-2:#fafafa; --ink:#111111; --muted:#6b7280;
+    --line:#e5e5e5; --accent:#b8860b; --accent-2:#d4a64a; --warn:#b45309; --bad:#991b1b; --good:#166534;
+    --chip:#f5f5f5;
+    --grid-line:#f1f1f1;
+    --shadow: 0 1px 3px rgba(0,0,0,.04), 0 1px 2px rgba(0,0,0,.06);
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0;background:var(--bg);color:var(--ink);font:13px/1.5 "Inter",-apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif;-webkit-font-smoothing:antialiased}
+  a{color:var(--accent);text-decoration:none}
+  header.app{
+    display:flex;align-items:center;gap:20px;padding:18px 32px;border-bottom:1px solid var(--line);
+    background:#ffffff;position:sticky;top:0;z-index:5;
+  }
+  header.app .brand{font-weight:600;letter-spacing:.3px;font-size:14px}
+  header.app .brand .firm{color:var(--ink);border-bottom:2px solid var(--accent);padding-bottom:2px}
+  header.app .sub{color:var(--muted);font-size:11.5px;margin-top:2px}
+  header.app .right{margin-left:auto;display:flex;gap:8px;align-items:center}
+  .pill{background:var(--chip);border:1px solid var(--line);color:var(--muted);padding:4px 10px;border-radius:999px;font-size:10.5px;font-weight:500;letter-spacing:.2px}
+  .pill.good{color:#ffffff;background:var(--good);border-color:transparent}
+  .pill.warn{color:#ffffff;background:var(--warn);border-color:transparent}
+  .pill.bad{color:#ffffff;background:var(--bad);border-color:transparent}
+  nav.tabs{display:flex;gap:2px;padding:0 32px;border-bottom:1px solid var(--line);background:#ffffff;overflow-x:auto}
+  nav.tabs button{
+    background:transparent;border:none;border-bottom:2px solid transparent;color:var(--muted);
+    padding:14px 14px 12px;font-size:12.5px;cursor:pointer;white-space:nowrap;display:flex;gap:6px;align-items:center;font-weight:500;letter-spacing:.1px
+  }
+  nav.tabs button .num{display:inline-block;color:var(--muted);font-weight:600;font-size:11px;opacity:.7}
+  nav.tabs button:hover{color:var(--ink)}
+  nav.tabs button.active{color:var(--ink);border-bottom-color:var(--accent)}
+  nav.tabs button.active .num{color:var(--accent);opacity:1}
+  main{padding:28px 32px 80px;max-width:1400px;margin:0 auto}
+  section.tab{display:none}
+  section.tab.active{display:block}
+  h2.tab-title{margin:4px 0 2px;font-size:20px;font-weight:600;letter-spacing:-.2px}
+  h2.tab-title small{color:var(--muted);font-weight:400;font-size:12px;margin-left:10px}
+  h3{font-size:11.5px;margin:24px 0 12px;color:var(--muted);letter-spacing:.6px;font-weight:600;text-transform:uppercase}
+  h3 .ord{color:var(--accent);font-weight:600;margin-right:6px}
+  .grid{display:grid;gap:16px}
+  .cards-6{grid-template-columns:repeat(6,minmax(0,1fr))}
+  .cards-4{grid-template-columns:repeat(4,minmax(0,1fr))}
+  .cards-3{grid-template-columns:repeat(3,minmax(0,1fr))}
+  .cards-2{grid-template-columns:repeat(2,minmax(0,1fr))}
+  @media (max-width:1100px){.cards-6{grid-template-columns:repeat(3,1fr)}.cards-4{grid-template-columns:repeat(2,1fr)}.cards-3{grid-template-columns:1fr}.cards-2{grid-template-columns:1fr}}
+  .panel{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:18px;box-shadow:var(--shadow)}
+  .panel h4{margin:0 0 14px;font-size:11px;color:var(--muted);font-weight:600;letter-spacing:.6px;text-transform:uppercase;display:flex;align-items:center;gap:6px}
+  .panel h4 .num{color:var(--accent);font-size:10px;font-weight:600}
+  .kpi{display:flex;flex-direction:column;gap:6px}
+  .kpi .v{font-size:28px;font-weight:600;letter-spacing:-.4px;color:var(--ink)}
+  .kpi .d{font-size:11px;color:var(--muted);letter-spacing:.1px}
+  .kpi .delta{font-size:11.5px}
+  .delta.up{color:var(--good)} .delta.down{color:var(--bad)} .delta.flat{color:var(--muted)}
+  .chart-wrap{position:relative;height:260px}
+  .chart-wrap.lg{height:340px}
+  .chart-wrap.xl{height:400px}
+  table{width:100%;border-collapse:collapse;font-size:12.5px}
+  thead th{font-size:11px;color:var(--muted);text-align:left;font-weight:600;padding:8px 8px;border-bottom:1px solid var(--line);position:sticky;top:0;background:var(--panel);cursor:pointer;user-select:none}
+  thead th:hover{color:var(--ink)}
+  thead th .sortmark{color:var(--muted);font-size:10px;margin-left:4px}
+  tbody td{padding:8px 8px;border-bottom:1px solid var(--grid-line)}
+  tbody tr:hover{background:var(--panel-2)}
+  .row-link{cursor:pointer}
+  .badge{display:inline-block;padding:2px 8px;border-radius:999px;font-size:11px;font-weight:600}
+  .badge.out{background:rgba(22,163,74,.10);color:var(--good)}
+  .badge.on{background:rgba(74,144,226,.12);color:var(--accent)}
+  .badge.und{background:rgba(217,119,6,.12);color:var(--warn)}
+  .badge.dis{background:rgba(220,38,38,.12);color:var(--bad)}
+  .num{font-variant-numeric:tabular-nums}
+  .pos{color:var(--good)} .neg{color:var(--bad)}
+  .ttl{display:flex;align-items:baseline;gap:8px}
+  .ttl .hint{color:var(--muted);font-size:11px}
+  .toolbar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:6px 0 12px}
+  .toolbar input[type=search],.toolbar select,.toolbar input[type=text],.toolbar input[type=number],.toolbar input[type=date]{
+    background:#ffffff;border:1px solid var(--line);color:var(--ink);padding:6px 10px;border-radius:8px;font-size:12px;min-width:140px
+  }
+  .toolbar button, button.btn{
+    background:var(--chip);border:1px solid var(--line);color:var(--ink);padding:6px 12px;border-radius:8px;cursor:pointer;font-size:12px
+  }
+  button.btn:hover{background:#dbe6f3}
+  button.btn.primary{background:var(--accent);color:#ffffff;border-color:transparent;font-weight:600}
+  button.btn.primary:hover{background:#3a7ed1}
+  button.btn.ghost{background:transparent}
+  button.btn.danger{background:var(--bad);color:#ffffff;border-color:transparent;font-weight:600}
+  .small{font-size:11px;color:var(--muted)}
+  .legend-dot{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:6px;vertical-align:middle}
+  .heatmap{border:1px solid var(--line);border-radius:10px;overflow:hidden}
+  .heatmap table{font-size:11.5px}
+  .heatmap thead th{padding:6px 6px}
+  .heatmap td{padding:6px 6px;text-align:center;font-weight:600;color:var(--ink)}
+  .heatmap td.lbl{background:var(--panel);color:var(--ink);text-align:left;font-weight:500}
+  .drop{border:1.5px dashed var(--accent-2);border-radius:12px;padding:24px;text-align:center;color:var(--muted);background:var(--panel-2)}
+  .drop.over{border-color:var(--accent);color:var(--ink);background:#dbe6f3}
+  .modal-bg{position:fixed;inset:0;background:rgba(15,28,51,.45);display:none;align-items:center;justify-content:center;z-index:20;padding:24px}
+  .modal-bg.open{display:flex}
+  .modal{background:var(--panel);border:1px solid var(--line);border-radius:14px;width:min(1080px,100%);max-height:90vh;overflow:auto;box-shadow:var(--shadow)}
+  .modal header{display:flex;justify-content:space-between;align-items:center;padding:14px 18px;border-bottom:1px solid var(--line);position:sticky;top:0;background:var(--panel);z-index:2}
+  .modal .body{padding:16px 18px}
+  .modal .close{background:transparent;color:var(--muted);border:0;font-size:20px;cursor:pointer}
+  .field{display:flex;flex-direction:column;gap:4px;margin-bottom:10px}
+  .field label{font-size:11px;color:var(--muted)}
+  .field input,.field select,.field textarea{
+    background:#ffffff;border:1px solid var(--line);color:var(--ink);padding:7px 10px;border-radius:8px;font-size:12.5px;width:100%
+  }
+  .row{display:grid;gap:10px}
+  .row.r-2{grid-template-columns:1fr 1fr}
+  .row.r-3{grid-template-columns:1fr 1fr 1fr}
+  .row.r-4{grid-template-columns:1fr 1fr 1fr 1fr}
+  details{background:var(--panel-2);border:1px solid var(--line);border-radius:10px;padding:8px 10px}
+  details summary{cursor:pointer;color:var(--muted);font-size:12px}
+  .toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:var(--ink);border:1px solid var(--ink);color:#ffffff;padding:10px 14px;border-radius:10px;box-shadow:var(--shadow);font-size:12.5px;opacity:0;transition:opacity .25s;z-index:30;pointer-events:none}
+  .toast.show{opacity:1}
+  .sync-block{display:flex;gap:10px;align-items:center;background:var(--panel-2);border:1px dashed var(--line);border-radius:10px;padding:10px 12px}
+  .dot{width:8px;height:8px;border-radius:50%;display:inline-block}
+  .dot.gray{background:#9aa6c0} .dot.green{background:var(--good)} .dot.amber{background:var(--warn)}
+  .spark{display:inline-block;vertical-align:middle;margin-left:8px}
+  .footnote{color:var(--muted);font-size:11px;margin-top:6px;line-height:1.5}
+  .clickable{cursor:pointer}
+  hr.sep{border:0;border-top:1px solid var(--line);margin:18px 0}
+</style>
+</head>
+<body>
+
+<!-- Boot diagnostic overlay — disappears once everything loads cleanly -->
+<div id="bootOverlay" style="position:fixed;inset:0;background:#f4f8fc;display:flex;align-items:center;justify-content:center;z-index:999;color:#0f1c33;font:13px -apple-system,sans-serif">
+  <div style="max-width:520px;padding:24px;border:1px solid #d8e2ee;border-radius:12px;background:#ffffff;text-align:center;box-shadow:0 4px 14px rgba(15,28,51,.06)">
+    <div id="bootSpin" style="font-size:18px;font-weight:700;margin-bottom:8px;color:#0f1c33">Loading Portfolio Monitor…</div>
+    <div id="bootMsg" style="color:#5b7088">Fetching chart library, computing roll-ups.</div>
+    <div id="bootErr" style="margin-top:14px;color:#dc2626;text-align:left;display:none;font-family:ui-monospace,monospace;font-size:11.5px;background:#fef2f2;padding:10px;border-radius:8px;border:1px solid #fecaca;white-space:pre-wrap;max-height:240px;overflow:auto"></div>
+  </div>
+</div>
+
+<header class="app">
+  <div>
+    <div class="brand"><span class="firm" id="firmNameLabel">North Castle Partners</span> — Portfolio Monitor</div>
+    <div class="sub" id="firmSub">Fund III • USD, $M • Demo data — replace via Tab 7 (Data Lab)</div>
+  </div>
+  <div class="right">
+    <span class="pill" id="asOfPill">As of —</span>
+    <span class="pill" id="storagePill">Local save: —</span>
+    <span class="pill" id="sourcePill">Source: demo</span>
+    <button class="btn" onclick="dlg.help()">Help</button>
+  </div>
+</header>
+
+<nav class="tabs" id="tabsNav">
+  <button data-tab="t1" class="active"><span class="num">1</span> Overview</button>
+  <button data-tab="t2"><span class="num">2</span> Leaderboard</button>
+  <button data-tab="t3"><span class="num">3</span> Companies</button>
+  <button data-tab="t4"><span class="num">4</span> Value Creation</button>
+  <button data-tab="t5"><span class="num">5</span> Operational KPIs</button>
+  <button data-tab="t6"><span class="num">6</span> Sector Cuts</button>
+  <button data-tab="t7"><span class="num">7</span> Data Lab</button>
+  <button data-tab="t8"><span class="num">8</span> Settings</button>
+</nav>
+
+<main>
+
+<!-- TAB 1: OVERVIEW -->
+<section id="t1" class="tab active">
+  <h2 class="tab-title">1 · Fund Overview <small id="ovSub">aggregated across all active portfolio companies</small></h2>
+
+  <h3><span class="ord">1.1</span>Headline KPIs</h3>
+  <div class="grid cards-6" id="kpiCards"></div>
+
+  <h3><span class="ord">1.2</span>Composition & Distribution</h3>
+  <div class="grid cards-3">
+    <div class="panel"><h4><span class="num">A</span>Fair Value by Sector</h4><div class="chart-wrap"><canvas id="chSectorFMV"></canvas></div></div>
+    <div class="panel"><h4><span class="num">B</span>Invested Capital by Sector</h4><div class="chart-wrap"><canvas id="chSectorInv"></canvas></div></div>
+    <div class="panel"><h4><span class="num">C</span>Status Mix</h4><div class="chart-wrap"><canvas id="chStatus"></canvas></div></div>
+  </div>
+
+  <h3><span class="ord">1.3</span>Top & Bottom Contributors (by $ of value created)</h3>
+  <div class="grid cards-2">
+    <div class="panel"><h4><span class="num">A</span>Top 5 contributors</h4><div class="chart-wrap"><canvas id="chTop5"></canvas></div></div>
+    <div class="panel"><h4><span class="num">B</span>Bottom 5 contributors</h4><div class="chart-wrap"><canvas id="chBot5"></canvas></div></div>
+  </div>
+
+  <h3><span class="ord">1.4</span>Vintage curve — Invested vs Fair Value by year</h3>
+  <div class="panel"><div class="chart-wrap lg"><canvas id="chVintage"></canvas></div></div>
+
+  <h3><span class="ord">1.5</span>Fund EBITDA roll-up — last 4 years</h3>
+  <div class="panel"><div class="chart-wrap lg"><canvas id="chFundEbitda"></canvas></div></div>
+
+  <p class="footnote">All figures in USD millions unless noted.</p>
+</section>
+
+<!-- TAB 2: LEADERBOARD -->
+<section id="t2" class="tab">
+  <h2 class="tab-title">2 · Portfolio Leaderboard <small>sortable, rank-based; click a row for full drill-down</small></h2>
+  <div class="toolbar">
+    <input type="search" id="lbSearch" placeholder="Search company / sector…" oninput="renderLeaderboard()" />
+    <select id="lbSector" onchange="renderLeaderboard()"><option value="">All sectors</option></select>
+    <select id="lbStatus" onchange="renderLeaderboard()">
+      <option value="">All statuses</option>
+      <option>Outperforming</option><option>On plan</option><option>Underperforming</option><option>Distressed</option>
+    </select>
+    <select id="lbRankBy" onchange="renderLeaderboard()">
+      <option value="moic">Rank by MOIC</option>
+      <option value="valueCreated">Rank by $ value created</option>
+      <option value="ebitdaCagr">Rank by EBITDA CAGR</option>
+      <option value="revCagr">Rank by Revenue CAGR</option>
+      <option value="irr">Rank by IRR (approx)</option>
+    </select>
+    <button class="btn" onclick="exportLeaderboardCSV()">Export CSV</button>
+  </div>
+  <div class="panel" style="padding:0;overflow:auto">
+    <table id="lbTable">
+      <thead><tr>
+        <th data-k="rank">#<span class="sortmark"></span></th>
+        <th data-k="name">Company<span class="sortmark"></span></th>
+        <th data-k="sector">Sector<span class="sortmark"></span></th>
+        <th data-k="vintage">Vintage<span class="sortmark"></span></th>
+        <th data-k="hold">Hold (yrs)<span class="sortmark"></span></th>
+        <th data-k="invested">Invested $M<span class="sortmark"></span></th>
+        <th data-k="currentValue">Fair Value $M<span class="sortmark"></span></th>
+        <th data-k="moic">MOIC<span class="sortmark"></span></th>
+        <th data-k="irr">IRR (approx)<span class="sortmark"></span></th>
+        <th data-k="revCagr">Rev CAGR<span class="sortmark"></span></th>
+        <th data-k="ebitdaCagr">EBITDA CAGR<span class="sortmark"></span></th>
+        <th data-k="ebitdaMargin">Margin<span class="sortmark"></span></th>
+        <th data-k="status">Status<span class="sortmark"></span></th>
+      </tr></thead>
+      <tbody></tbody>
+    </table>
+  </div>
+  <p class="footnote">EBITDA / Revenue CAGRs are computed across the hold period (vintage → today). Color: green ≥ plan, amber slipping, red below plan.</p>
+</section>
+
+<!-- TAB 3: COMPANIES GRID -->
+<section id="t3" class="tab">
+  <h2 class="tab-title">3 · Companies <small>card grid; click body to drill in, checkbox to multi-select</small></h2>
+  <div class="toolbar">
+    <input type="search" id="cgSearch" placeholder="Search…" oninput="renderCompanyGrid()" />
+    <select id="cgSector" onchange="renderCompanyGrid()"><option value="">All sectors</option></select>
+    <button class="btn primary" onclick="dlg.openCompany('__new__')">+ Add new portco</button>
+    <span style="border-left:1px solid var(--line);height:24px;margin:0 4px"></span>
+    <button class="btn ghost" onclick="cgSelectAll()">Select all (filtered)</button>
+    <button class="btn ghost" onclick="cgClearSel()">Clear selection</button>
+    <button class="btn danger" id="cgBulkDeleteBtn" onclick="cgBulkDelete()" disabled>Delete <span id="cgSelCount">0</span> selected</button>
+  </div>
+  <div class="grid cards-3" id="companyGrid"></div>
+</section>
+
+<!-- TAB 4: VALUE CREATION -->
+<section id="t4" class="tab">
+  <h2 class="tab-title">4 · Value Creation <small>where the returns come from — earnings growth, valuation change, debt reduction</small></h2>
+
+  <h3><span class="ord">4.1</span>Fund-level value bridge</h3>
+  <div class="panel"><div class="chart-wrap lg"><canvas id="chBridge"></canvas></div>
+    <p class="footnote">
+      Each company's value gain breaks into three pieces: earnings growth, change in market valuation, and debt repayment. The bars show the fund total.
+    </p>
+  </div>
+
+  <h3><span class="ord">4.2</span>Contribution by company</h3>
+  <div class="panel"><div class="chart-wrap xl"><canvas id="chBridgeStack"></canvas></div></div>
+
+  <h3><span class="ord">4.3</span>Fund value-add vs sector baseline</h3>
+  <div class="panel"><div class="chart-wrap lg"><canvas id="chMargBenefit"></canvas></div>
+    <p class="footnote">
+      Positive bars show earnings growth beyond what the sector alone would have delivered. Sector growth assumptions are editable in Settings.
+    </p>
+  </div>
+
+  <h3><span class="ord">4.4</span>Bridge by company (detailed table)</h3>
+  <div class="panel" style="padding:0;overflow:auto">
+    <table id="bridgeTable">
+      <thead><tr>
+        <th>Company</th><th>Sector</th>
+        <th>Entry EV</th><th>Current EV</th>
+        <th>ΔEBITDA × entry mult</th>
+        <th>Δmult × cur EBITDA</th>
+        <th>Debt paydown</th>
+        <th>Total Δ equity</th>
+        <th>% from EBITDA</th>
+        <th>% from Multiple</th>
+        <th>% from Debt</th>
+      </tr></thead>
+      <tbody></tbody>
+    </table>
+  </div>
+</section>
+
+<!-- TAB 5: OPERATIONAL KPIs -->
+<section id="t5" class="tab">
+  <h2 class="tab-title">5 · Operational KPIs <small>headcount, NRR, CAC payback, margin movement, ΔRevenue — color-coded vs sector benchmark</small></h2>
+
+  <h3><span class="ord">5.1</span>KPI heatmap</h3>
+  <div class="panel heatmap" id="heatmapWrap"></div>
+
+  <h3><span class="ord">5.2</span>EBITDA margin shift — entry vs current</h3>
+  <div class="panel"><div class="chart-wrap lg"><canvas id="chMargin"></canvas></div></div>
+
+  <h3><span class="ord">5.3</span>Headcount evolution — top 10 by growth</h3>
+  <div class="panel"><div class="chart-wrap lg"><canvas id="chHeadcount"></canvas></div></div>
+
+  <h3><span class="ord">5.4</span>SaaS-only: NRR vs CAC payback</h3>
+  <div class="panel"><div class="chart-wrap lg"><canvas id="chSaaS"></canvas></div></div>
+</section>
+
+<!-- TAB 6: SECTOR CUTS -->
+<section id="t6" class="tab">
+  <h2 class="tab-title">6 · Sector Cuts <small>how each vertical is contributing</small></h2>
+
+  <h3><span class="ord">6.1</span>Sector roll-up table</h3>
+  <div class="panel" style="padding:0;overflow:auto">
+    <table id="sectorTable">
+      <thead><tr>
+        <th>Sector</th><th># Cos</th>
+        <th>Invested $M</th><th>FMV $M</th>
+        <th>MOIC (wtd)</th>
+        <th>EBITDA Y0 $M</th><th>EBITDA Now $M</th><th>EBITDA CAGR</th>
+        <th>Rev Y0 $M</th><th>Rev Now $M</th><th>Rev CAGR</th>
+        <th>Margin Δ (bps)</th>
+      </tr></thead>
+      <tbody></tbody>
+    </table>
+  </div>
+
+  <h3><span class="ord">6.2</span>MOIC by sector (weighted)</h3>
+  <div class="panel"><div class="chart-wrap"><canvas id="chSecMOIC"></canvas></div></div>
+
+  <h3><span class="ord">6.3</span>Entry multiple vs current multiple (per portco)</h3>
+  <div class="panel"><div class="chart-wrap lg"><canvas id="chMultScatter"></canvas></div>
+    <p class="footnote">Points above the 1:1 line = multiple expansion; below = compression. Bubble size ∝ current EV.</p>
+  </div>
+</section>
+
+<!-- TAB 7: DATA LAB -->
+<section id="t7" class="tab">
+  <h2 class="tab-title">7 · Data Lab <small>import files, add a portco, sync SharePoint (when connected), export</small></h2>
+
+  <h3><span class="ord">7.1</span>Upload financial data (CSV / XLSX / JSON / PDF)</h3>
+  <div class="panel">
+    <div id="dropZone" class="drop">
+      <div style="font-size:14px;color:var(--ink);margin-bottom:6px">Drop a file here, or <label style="color:var(--accent);cursor:pointer;text-decoration:underline">choose a file<input id="fileInput" type="file" accept=".csv,.xlsx,.xls,.json,.tsv,.pdf" style="display:none" /></label></div>
+      <div class="small">Accepted: <b>.csv</b>, <b>.xlsx</b>, <b>.json</b>, <b>.pdf</b>. Column names are matched against common variants (e.g. "Company", "Revenue", "EBITDA" all work). PDFs are scanned for keywords like "Revenue", "EBITDA", "Net debt" — review and confirm before save.</div>
+    </div>
+    <div class="toolbar" style="margin-top:14px">
+      <label class="small" style="display:flex;align-items:center;gap:6px;color:var(--muted)"><input type="checkbox" id="importReplace"/>Replace existing data on import</label>
+      <button class="btn" onclick="downloadTemplateCSV()">Download CSV template</button>
+      <button class="btn" onclick="downloadTemplateXLSX()">Download XLSX template</button>
+      <button class="btn" onclick="downloadJSONsnapshot()">Export current data → JSON</button>
+      <button class="btn ghost" onclick="clearAllPortcos()">Clear all portcos</button>
+      <button class="btn ghost" onclick="confirmReset()">Reset to demo data</button>
+    </div>
+    <div id="importStatus" style="margin-top:12px"></div>
+    <p class="footnote">If your column names don't match the dashboard's expected fields, the parser tells you exactly what it found vs what it needed.</p>
+  </div>
+
+  <h3><span class="ord">7.2</span>Add a portco manually</h3>
+  <div class="panel">
+    <div class="row r-4">
+      <div class="field"><label>Company name</label><input id="f_name" type="text"/></div>
+      <div class="field"><label>Sector</label><select id="f_sector"></select></div>
+      <div class="field"><label>Vintage date</label><input id="f_vintage" type="date"/></div>
+      <div class="field"><label>Status</label><select id="f_status"><option>On plan</option><option>Outperforming</option><option>Underperforming</option><option>Distressed</option></select></div>
+    </div>
+    <div class="row r-4">
+      <div class="field"><label>Invested equity $M</label><input id="f_invested" type="number" step="0.1"/></div>
+      <div class="field"><label>Entry revenue $M</label><input id="f_entryRev" type="number" step="0.1"/></div>
+      <div class="field"><label>Entry EBITDA $M</label><input id="f_entryEbitda" type="number" step="0.1"/></div>
+      <div class="field"><label>Entry net debt $M</label><input id="f_entryDebt" type="number" step="0.1"/></div>
+    </div>
+    <div class="row r-4">
+      <div class="field"><label>Current revenue $M</label><input id="f_curRev" type="number" step="0.1"/></div>
+      <div class="field"><label>Current EBITDA $M</label><input id="f_curEbitda" type="number" step="0.1"/></div>
+      <div class="field"><label>Current net debt $M</label><input id="f_curDebt" type="number" step="0.1"/></div>
+      <div class="field"><label>Current EV $M</label><input id="f_curEV" type="number" step="0.1"/></div>
+    </div>
+    <div class="row r-4">
+      <div class="field"><label>Entry headcount</label><input id="f_hcE" type="number"/></div>
+      <div class="field"><label>Current headcount</label><input id="f_hcC" type="number"/></div>
+      <div class="field"><label>NRR % (SaaS only)</label><input id="f_nrr" type="number" step="0.1"/></div>
+      <div class="field"><label>CAC payback months (SaaS only)</label><input id="f_cac" type="number" step="0.1"/></div>
+    </div>
+    <div class="field"><label>Notes</label><textarea id="f_notes" rows="2"></textarea></div>
+    <div class="toolbar"><button class="btn primary" onclick="addPortcoFromForm()">Add portco</button></div>
+  </div>
+
+  <h3><span class="ord">7.3</span>SharePoint / Microsoft 365 sync (connector-ready)</h3>
+  <div class="panel">
+    <div class="sync-block">
+      <span class="dot gray" id="m365Dot"></span>
+      <div>
+        <div style="font-weight:600">Microsoft 365 (SharePoint, OneDrive, Outlook)</div>
+        <div class="small" id="m365Status">Not connected. When you run this tool from your North Castle account, click <b>Connect</b> in Cowork / Claude and the dashboard will read from <code>/Sites/Portfolio/&lt;Company&gt;/Financials/</code>.</div>
+      </div>
+      <div style="margin-left:auto"><button class="btn" onclick="trySyncSharePoint()">Try sync</button></div>
+    </div>
+    <details style="margin-top:12px"><summary>What this hook expects when wired</summary>
+      <pre style="white-space:pre-wrap;color:var(--muted);font-size:12px;margin-top:8px">
+Folder convention:
+  /Sites/Portfolio/{CompanyName}/Financials/{YYYY-MM}/
+        - financials.xlsx   (tabs: PL, KPI)
+        - notes.md
+The sync routine pulls the latest folder per company, maps tabs to the same field
+names as the template (Tab 7.1), and merges into local data. Provenance ("Source")
+flips from "demo" / "manual" → "sharepoint" with a last-pulled timestamp.</pre>
+    </details>
+  </div>
+
+  <h3><span class="ord">7.4</span>Going live (server-backed) — what changes</h3>
+  <div class="panel">
+    <ol style="margin:6px 0 0 18px;color:var(--ink);font-size:12.5px;line-height:1.7">
+      <li>Swap <code>localStorage</code> for a Postgres-backed API (one row per portco-period). The schema mirrors the template field names — no model change needed.</li>
+      <li>Replace the SharePoint stub with the live M365 sync (server-side OAuth, refresh on a 6-hour cadence, write provenance back into each cell).</li>
+      <li>Add row-level permissions: each portco user only sees / edits their own row. Fund-team users see all.</li>
+      <li>Wrap PDF ingestion (board decks, audited statements) with a server-side table-extraction pipeline; route to the same template fields with a confidence score.</li>
+      <li>Optional: feed numeric series into an LLM ("explain this portco's quarter in 3 sentences") to auto-generate the prose in Tab 3 modals.</li>
+    </ol>
+  </div>
+</section>
+
+<!-- TAB 8: SETTINGS -->
+<section id="t8" class="tab">
+  <h2 class="tab-title">8 · Settings</h2>
+  <div class="panel">
+    <div class="row r-3">
+      <div class="field"><label>Firm name (header)</label><input id="set_firm" type="text"/></div>
+      <div class="field"><label>Fund label</label><input id="set_fund" type="text"/></div>
+      <div class="field"><label>As-of date</label><input id="set_asof" type="date"/></div>
+    </div>
+    <h3 style="margin-top:14px"><span class="ord">8.1</span>Sector growth assumptions (used in the value-add chart)</h3>
+    <div class="row r-4" id="sectorCagrFields"></div>
+
+    <h3 style="margin-top:14px"><span class="ord">8.2</span>Claude API key (optional — enables "Enrich with Claude" on each company)</h3>
+    <div class="field">
+      <input id="set_anthropicKey" type="password" placeholder="sk-ant-…" autocomplete="off"/>
+      <span class="small">Paste your Anthropic API key (starts with <code>sk-ant-</code>). Stored only in this browser's local storage. Used to generate richer per-portco insights on demand. Get one at <a href="https://console.anthropic.com/" target="_blank">console.anthropic.com</a>.</span>
+    </div>
+
+    <div class="toolbar"><button class="btn primary" onclick="saveSettings()">Save settings</button>
+      <button class="btn" onclick="snapshotSession()">Download snapshot (JSON)</button>
+      <button class="btn danger" onclick="confirmReset()">Reset to demo data</button>
+    </div>
+    <p class="footnote">All data lives in this browser's local storage. Use "Download snapshot" to share state across machines, or to back up before changes.</p>
+  </div>
+</section>
+
+</main>
+
+<!-- DRILL-DOWN MODAL -->
+<div class="modal-bg" id="companyModal">
+  <div class="modal">
+    <header>
+      <div>
+        <div id="cm_title" style="font-size:16px;font-weight:700"></div>
+        <div id="cm_sub" class="small"></div>
+      </div>
+      <button class="close" onclick="dlg.close()">×</button>
+    </header>
+    <div class="body" id="cm_body"></div>
+  </div>
+</div>
+
+<!-- HELP MODAL -->
+<!-- WELCOME MODAL — shown on first run -->
+<div class="modal-bg" id="welcomeModal">
+  <div class="modal" style="width:min(560px,100%)">
+    <header><div style="font-weight:700">Welcome to the Portfolio Monitor</div></header>
+    <div class="body">
+      <p style="margin-top:0">This is your first time opening the dashboard in this browser. How would you like to start?</p>
+      <div class="grid cards-2" style="margin-top:14px">
+        <div class="panel" style="text-align:center;cursor:pointer" onclick="startBlankNow()">
+          <div style="font-size:32px;margin-bottom:6px">📋</div>
+          <div style="font-weight:700;margin-bottom:4px">Start blank</div>
+          <div class="small">Empty dashboard. Add portcos via Tab 7 (Data Lab) or import a CSV/XLSX/PDF.</div>
+        </div>
+        <div class="panel" style="text-align:center;cursor:pointer" onclick="loadDemoNow()">
+          <div style="font-size:32px;margin-bottom:6px">🎓</div>
+          <div style="font-weight:700;margin-bottom:4px">Load demo</div>
+          <div class="small">22 sample North Castle portcos so you can see what the tool does.</div>
+        </div>
+      </div>
+      <p class="footnote" style="margin-top:14px"><b>Persistence note:</b> your changes save to this browser's local storage. If you open the file from a different browser, or via Cowork's preview pane, the storage is separate. Use Tab 8 → Snapshot to download your data as a JSON file you can re-import anywhere.</p>
+    </div>
+  </div>
+</div>
+
+<div class="modal-bg" id="helpModal">
+  <div class="modal" style="width:min(720px,100%)">
+    <header><div style="font-weight:700">How to use this tool</div><button class="close" onclick="dlg.closeHelp()">×</button></header>
+    <div class="body">
+      <ol style="line-height:1.7">
+        <li><b>Tabs 1–6</b> are the read-only analytics — show these in IC, partner meetings, or LP calls.</li>
+        <li><b>Tab 7 (Data Lab)</b> is where portcos and analysts add data. Three paths:
+          <ul>
+            <li><b>Drop a file</b> (CSV/XLSX/JSON) using the template — fastest for monthly updates.</li>
+            <li><b>Manually add a portco</b> with the form — fastest for first onboarding.</li>
+            <li><b>SharePoint sync</b> — currently a stub; activates the moment Microsoft 365 is connected on a non-Yale account.</li>
+          </ul>
+        </li>
+        <li><b>localStorage</b> means each user's browser keeps its own copy. Use <i>Snapshot session</i> in Tab 8 to share a JSON across the team until you deploy a server-backed version.</li>
+        <li><b>Per-portco access</b> (each company sees only their row) is a server-side feature — not enforceable in browser-only mode. Add this in step 3 of the deployment list (Tab 7.4).</li>
+        <li><b>"Marginal benefit" (Tab 4.3)</b> answers the partner question "what did <i>we</i> add vs market drift?" — tweak the sector CAGRs in Settings (Tab 8) to match your house view.</li>
+      </ol>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+/* ============================================================
+   DATA MODEL & DEMO DATASET (22 portcos, 5 sectors)
+   ============================================================ */
+
+const SECTORS = ["Healthcare Services","Consumer Brands","B2B Software","Industrial Services","Financial Services"];
+const DEFAULT_SETTINGS = {
+  firm: "North Castle Partners",
+  fund: "Fund III",
+  asof: new Date().toISOString().slice(0,10),
+  sectorCagr: {  // organic baseline growth used in marginal-benefit calc
+    "Healthcare Services": 0.05,
+    "Consumer Brands": 0.03,
+    "B2B Software": 0.10,
+    "Industrial Services": 0.025,
+    "Financial Services": 0.04
+  }
+};
+
+/* helper to build a portco object with consistent math */
+function P(o){
+  // fill EV / multiple if missing using EBITDA*multiple
+  if(o.entryEV==null && o.entryMult!=null) o.entryEV = +(o.entryEbitda*o.entryMult).toFixed(2);
+  if(o.curEV==null && o.curMult!=null) o.curEV = +(o.curEbitda*o.curMult).toFixed(2);
+  if(o.entryMult==null) o.entryMult = +(o.entryEV/o.entryEbitda).toFixed(2);
+  if(o.curMult==null) o.curMult = +(o.curEV/o.curEbitda).toFixed(2);
+  // current value (equity) = curEV - curDebt (assumes 100% ownership unless set)
+  const ownership = o.ownership ?? 1.0;
+  if(o.curValue==null) o.curValue = +((o.curEV - o.curDebt) * ownership).toFixed(2);
+  return o;
+}
+
+/* The demo portfolio. Numbers are illustrative but internally consistent. */
+const DEMO = [
+  // ---- Healthcare Services
+  P({id:"hc1", name:"Meridian Dental Group", sector:"Healthcare Services", status:"Outperforming",
+     vintage:"2022-03-15", invested:85, ownership:1.0,
+     entryRev:120, entryEbitda:18, entryGM:0.70, entryDebt:77, entryMult:9,
+     curRev:165, curEbitda:30.0, curGM:0.70, curDebt:52, curMult:11.0,
+     hcEntry:1100, hcCur:1450, nrr:null, cacPayback:null,
+     revHist:[105,120,140,165], ebitdaHist:[14,18,24,30],
+     notes:"DSO roll-up, 14 acquisitions completed under our hold. Best-in-class billing system replaced legacy."}),
+  P({id:"hc2", name:"Cascade Behavioral Health", sector:"Healthcare Services", status:"Outperforming",
+     vintage:"2021-09-01", invested:62, entryRev:90, entryEbitda:11, entryGM:0.55, entryDebt:31.5, entryMult:8.5,
+     curRev:135, curEbitda:19, curGM:0.58, curDebt:20, curMult:10,
+     hcEntry:650, hcCur:990, revHist:[78,90,110,135], ebitdaHist:[8.6,11,15,19],
+     notes:"Outpatient mental-health, in-network with major payors expanded 4→18 states."}),
+  P({id:"hc3", name:"AltaCare Home Health", sector:"Healthcare Services", status:"On plan",
+     vintage:"2020-11-10", invested:40, entryRev:55, entryEbitda:7, entryGM:0.42, entryDebt:16, entryMult:8,
+     curRev:72, curEbitda:9.5, curGM:0.43, curDebt:11, curMult:8.5,
+     hcEntry:380, hcCur:510, revHist:[48,55,63,72], ebitdaHist:[5.6,7,8.3,9.5],
+     notes:"CMS reimbursement headwinds offset by scale; route density improved 22%."}),
+  P({id:"hc4", name:"Beacon Physical Therapy", sector:"Healthcare Services", status:"On plan",
+     vintage:"2023-06-20", invested:30, entryRev:45, entryEbitda:5.5, entryGM:0.48, entryDebt:19.5, entryMult:9,
+     curRev:52, curEbitda:7.0, curGM:0.50, curDebt:16, curMult:9.5,
+     hcEntry:220, hcCur:260, revHist:[40,42,45,52], ebitdaHist:[4.8,5.0,5.5,7.0],
+     notes:"Recent acq, ramp expected through 2027."}),
+
+  // ---- Consumer Brands
+  P({id:"cb1", name:"Northwind Coffee Co.", sector:"Consumer Brands", status:"Outperforming",
+     vintage:"2019-04-08", invested:55, entryRev:130, entryEbitda:14, entryGM:0.38, entryDebt:57, entryMult:8,
+     curRev:185, curEbitda:24, curGM:0.42, curDebt:40, curMult:10,
+     hcEntry:920, hcCur:1180, revHist:[125,140,165,185], ebitdaHist:[13,16,20,24],
+     notes:"DTC channel scaled from 8% → 27% of revenue; exit teaser in market."}),
+  P({id:"cb2", name:"Verdant Pet Foods", sector:"Consumer Brands", status:"Outperforming",
+     vintage:"2022-08-12", invested:48, entryRev:75, entryEbitda:9, entryGM:0.34, entryDebt:33, entryMult:9,
+     curRev:105, curEbitda:14, curGM:0.36, curDebt:26, curMult:11,
+     hcEntry:310, hcCur:415, revHist:[62,75,90,105], ebitdaHist:[6.5,9,11.5,14],
+     notes:"Premium pet trend, two SKU lines launched."}),
+  P({id:"cb3", name:"Lumen Apparel", sector:"Consumer Brands", status:"Underperforming",
+     vintage:"2021-02-22", invested:70, entryRev:160, entryEbitda:19, entryGM:0.44, entryDebt:72.5, entryMult:7.5,
+     curRev:145, curEbitda:14, curGM:0.41, curDebt:50, curMult:6.5,
+     hcEntry:1450, hcCur:1180, revHist:[155,160,158,145], ebitdaHist:[20,19,17,14],
+     notes:"Wholesale channel pressure; ops plan being reset Q2 2026."}),
+  P({id:"cb4", name:"Skybound Outdoor", sector:"Consumer Brands", status:"Outperforming",
+     vintage:"2020-06-30", invested:45, entryRev:95, entryEbitda:10.5, entryGM:0.46, entryDebt:39, entryMult:8,
+     curRev:128, curEbitda:17, curGM:0.48, curDebt:30, curMult:9.5,
+     hcEntry:540, hcCur:680, revHist:[85,95,110,128], ebitdaHist:[9.0,10.5,13.5,17],
+     notes:"Direct sourcing program lifted margin 200bps."}),
+  P({id:"cb5", name:"Birchwood Beverages", sector:"Consumer Brands", status:"On plan",
+     vintage:"2024-01-05", invested:35, entryRev:48, entryEbitda:5.5, entryGM:0.40, entryDebt:20, entryMult:10,
+     curRev:54, curEbitda:7.0, curGM:0.41, curDebt:18, curMult:10.5,
+     hcEntry:210, hcCur:240, revHist:[42,45,48,54], ebitdaHist:[4.4,4.8,5.5,7.0],
+     notes:"Functional beverages; distribution buildout phase."}),
+
+  // ---- B2B Software  (modeled as 100% ownership buyouts — invested ≈ entry equity = entryEV − entryDebt)
+  P({id:"sw1", name:"Polaris HRTech", sector:"B2B Software", status:"Outperforming",
+     vintage:"2021-11-18", invested:96, entryRev:18, entryEbitda:3, entryGM:0.74, entryDebt:0, entryMult:32,
+     curRev:42, curEbitda:9, curGM:0.78, curDebt:0, curMult:28,
+     hcEntry:160, hcCur:280, nrr:118, cacPayback:18,
+     revHist:[12,18,28,42], ebitdaHist:[1.4,3,6,9],
+     notes:"NRR 118%, gross retention 94%, expanding into Canada/UK."}),
+  P({id:"sw2", name:"Cipher Compliance Software", sector:"B2B Software", status:"On plan",
+     vintage:"2022-05-04", invested:60, entryRev:12, entryEbitda:2, entryGM:0.76, entryDebt:0, entryMult:30,
+     curRev:22, curEbitda:5, curGM:0.79, curDebt:0, curMult:28,
+     hcEntry:95, hcCur:160, nrr:112, cacPayback:22,
+     revHist:[8,12,16,22], ebitdaHist:[1.0,2,3.2,5],
+     notes:"Tailwind from new SEC cyber disclosure rules."}),
+  P({id:"sw3", name:"Atlas Field Service Cloud", sector:"B2B Software", status:"Outperforming",
+     vintage:"2020-10-09", invested:70, entryRev:18, entryEbitda:2.5, entryGM:0.72, entryDebt:0, entryMult:28,
+     curRev:48, curEbitda:12, curGM:0.79, curDebt:0, curMult:26,
+     hcEntry:140, hcCur:280, nrr:121, cacPayback:14,
+     revHist:[14,18,30,48], ebitdaHist:[1.5,2.5,7,12],
+     notes:"Best NRR in portfolio; potential strategic exit interest."}),
+  P({id:"sw4", name:"Vanta Logistics Platform", sector:"B2B Software", status:"Underperforming",
+     vintage:"2022-12-14", invested:50, entryRev:18, entryEbitda:2, entryGM:0.68, entryDebt:0, entryMult:25,
+     curRev:23, curEbitda:1.5, curGM:0.66, curDebt:5, curMult:22,
+     hcEntry:120, hcCur:140, nrr:96, cacPayback:36,
+     revHist:[14,18,21,23], ebitdaHist:[1.6,2.0,1.8,1.5],
+     notes:"NRR < 100% — at-risk; CS reorg in progress."}),
+  P({id:"sw5", name:"Helios Marketing Cloud", sector:"B2B Software", status:"On plan",
+     vintage:"2023-03-30", invested:52, entryRev:15, entryEbitda:2, entryGM:0.74, entryDebt:0, entryMult:26,
+     curRev:28, curEbitda:5, curGM:0.77, curDebt:0, curMult:24,
+     hcEntry:90, hcCur:150, nrr:110, cacPayback:20,
+     revHist:[10,15,22,28], ebitdaHist:[1.2,2,3.5,5],
+     notes:"AI-feature uplift driving NRR expansion."}),
+
+  // ---- Industrial Services
+  P({id:"in1", name:"Ironclad Industrial Coatings", sector:"Industrial Services", status:"On plan",
+     vintage:"2019-08-19", invested:60, entryRev:140, entryEbitda:16, entryGM:0.28, entryDebt:68, entryMult:8,
+     curRev:175, curEbitda:22, curGM:0.30, curDebt:50, curMult:8.5,
+     hcEntry:780, hcCur:880, revHist:[125,140,160,175], ebitdaHist:[14,16,19,22],
+     notes:"Cyclical; pricing discipline initiative held margin through 2024 dip."}),
+  P({id:"in2", name:"Summit Steel Distribution", sector:"Industrial Services", status:"Outperforming",
+     vintage:"2021-07-02", invested:72, entryRev:210, entryEbitda:20, entryGM:0.16, entryDebt:68, entryMult:7,
+     curRev:290, curEbitda:36, curGM:0.18, curDebt:50, curMult:8,
+     hcEntry:520, hcCur:640, revHist:[180,210,250,290], ebitdaHist:[16,21,28,36],
+     notes:"Two bolt-ons; logistics network optimization."}),
+  P({id:"in3", name:"Pacific MRO Services", sector:"Industrial Services", status:"On plan",
+     vintage:"2022-04-25", invested:55, entryRev:88, entryEbitda:11, entryGM:0.32, entryDebt:39, entryMult:8.5,
+     curRev:108, curEbitda:14, curGM:0.33, curDebt:31, curMult:9,
+     hcEntry:410, hcCur:475, revHist:[78,88,98,108], ebitdaHist:[9.5,11,12.5,14],
+     notes:"Aerospace MRO; contracts repricing in 2027."}),
+  P({id:"in4", name:"Granite Building Products", sector:"Industrial Services", status:"Underperforming",
+     vintage:"2020-12-08", invested:50, entryRev:115, entryEbitda:13.5, entryGM:0.24, entryDebt:54, entryMult:7.5,
+     curRev:110, curEbitda:10, curGM:0.22, curDebt:48, curMult:6.5,
+     hcEntry:460, hcCur:420, revHist:[110,115,114,110], ebitdaHist:[12,13.5,11,10],
+     notes:"Housing cycle drag; ops plan refresh underway."}),
+
+  // ---- Financial Services
+  P({id:"fs1", name:"Sterling Specialty Insurance", sector:"Financial Services", status:"Outperforming",
+     vintage:"2021-05-17", invested:90, entryRev:75, entryEbitda:10.5, entryGM:0.62, entryDebt:25.5, entryMult:11,
+     curRev:118, curEbitda:20, curGM:0.65, curDebt:18, curMult:13,
+     hcEntry:240, hcCur:330, revHist:[62,75,95,118], ebitdaHist:[8,10.5,15,20],
+     notes:"Hard market in specialty lines; loss ratio improved 480bps."}),
+  P({id:"fs2", name:"Harborview Title", sector:"Financial Services", status:"Underperforming",
+     vintage:"2020-03-11", invested:35, entryRev:55, entryEbitda:6, entryGM:0.48, entryDebt:19, entryMult:9,
+     curRev:40, curEbitda:4, curGM:0.42, curDebt:15, curMult:7,
+     hcEntry:280, hcCur:210, revHist:[55,60,48,40], ebitdaHist:[7,6,5,4],
+     notes:"Rate-cycle exposure; tech investment underway to expand non-rate revenue."}),
+  P({id:"fs3", name:"Equinox Fund Admin", sector:"Financial Services", status:"On plan",
+     vintage:"2022-10-20", invested:58, entryRev:42, entryEbitda:6.5, entryGM:0.55, entryDebt:13.5, entryMult:11,
+     curRev:60, curEbitda:10, curGM:0.57, curDebt:10, curMult:12,
+     hcEntry:310, hcCur:395, revHist:[5,6.5,8,10], ebitdaHist:[5,6.5,8,10],
+     notes:"Crypto-fund admin sub-vertical launched 2024."}),
+  P({id:"fs4", name:"Quill Wealth Advisors", sector:"Financial Services", status:"Outperforming",
+     vintage:"2019-11-14", invested:80, entryRev:62, entryEbitda:10, entryGM:0.68, entryDebt:20, entryMult:10,
+     curRev:108, curEbitda:22, curGM:0.71, curDebt:15, curMult:12,
+     hcEntry:165, hcCur:240, revHist:[55,62,82,108], ebitdaHist:[8,10,15,22],
+     notes:"RIA roll-up; 11 advisor practices added. Likely exit 2027."})
+];
+
+/* ============================================================
+   STATE & PERSISTENCE
+   ============================================================ */
+const LS_KEY = "ncp_portfolio_dashboard_v1";
+
+function loadState(){
+  try{
+    const raw = localStorage.getItem(LS_KEY);
+    // FIRST RUN: nothing in storage — return a blank state so the user picks demo vs blank
+    if(!raw) return blankState();
+    const s = JSON.parse(raw);
+    // Trust whatever's in storage — including empty portcos array (never re-seed silently)
+    if(!s.portcos) s.portcos = [];
+    if(!s.settings) s.settings = {...DEFAULT_SETTINGS};
+    return s;
+  }catch(e){ return blankState() }
+}
+function blankState(){
+  return { portcos: [], settings: {...DEFAULT_SETTINGS}, source:"empty", lastSaved:null };
+}
+function seedState(){
+  return { portcos: JSON.parse(JSON.stringify(DEMO)).map(P), settings: {...DEFAULT_SETTINGS}, source:"demo", lastSaved:null };
+}
+function loadDemoNow(){
+  state = seedState(); saveState(); refreshAll();
+  document.getElementById("welcomeModal")?.classList.remove("open");
+  toast("Demo data loaded — " + state.portcos.length + " portfolio companies");
+}
+function startBlankNow(){
+  state = blankState(); saveState(); refreshAll();
+  document.getElementById("welcomeModal")?.classList.remove("open");
+  toast("Started with a blank portfolio");
+}
+function saveState(){
+  state.lastSaved = new Date().toISOString();
+  localStorage.setItem(LS_KEY, JSON.stringify(state));
+  document.getElementById("storagePill").textContent = "Local save: " + new Date(state.lastSaved).toLocaleTimeString();
+  document.getElementById("sourcePill").textContent = "Source: " + state.source;
+}
+
+let state = loadState();
+
+/* ============================================================
+   COMPUTED METRICS
+   ============================================================ */
+function holdYears(p){
+  const d = new Date(p.vintage);
+  const now = new Date(state.settings.asof || Date.now());
+  return Math.max(0.25, (now - d) / (1000*60*60*24*365.25));
+}
+function moic(p){ return p.curValue / p.invested; }
+function irrApprox(p){ return Math.pow(moic(p), 1/holdYears(p)) - 1; }
+function revCagr(p){ return Math.pow(p.curRev/p.entryRev, 1/holdYears(p)) - 1; }
+function ebitdaCagr(p){
+  if(p.entryEbitda<=0) return null;
+  return Math.pow(p.curEbitda/p.entryEbitda, 1/holdYears(p)) - 1;
+}
+function ebitdaMargin(p){ return p.curEbitda/p.curRev; }
+function valueCreatedAbs(p){ return (p.curValue - p.invested); }
+function ebitdaGrowthBridge(p){ return (p.curEbitda - p.entryEbitda) * p.entryMult; }
+function multipleBridge(p){ return (p.curMult - p.entryMult) * p.curEbitda; }
+function debtPaydown(p){ return p.entryDebt - p.curDebt; }
+function totalEquityDelta(p){ return ebitdaGrowthBridge(p) + multipleBridge(p) + debtPaydown(p); }
+function marginalBenefit(p){
+  const sec = state.settings.sectorCagr[p.sector] ?? 0.04;
+  const expectedEndEbitda = p.entryEbitda * Math.pow(1+sec, holdYears(p));
+  return p.curEbitda - expectedEndEbitda;
+}
+function statusBadge(s){
+  const m = {"Outperforming":"out","On plan":"on","Underperforming":"und","Distressed":"dis"};
+  return `<span class="badge ${m[s]||'on'}">${s}</span>`;
+}
+function fmtM(v){ if(v==null||isNaN(v)) return "—"; const n=+v; return "$"+n.toLocaleString(undefined,{minimumFractionDigits:1,maximumFractionDigits:1})+"M"; }
+function fmtMshort(v){ if(v==null||isNaN(v)) return "—"; return "$"+Math.round(+v).toLocaleString()+"M"; }
+function fmtPct(v,d=1){ return (v==null||isNaN(v))?"—":((v*100).toFixed(d)+"%"); }
+function fmtX(v,d=2){ return (v==null||isNaN(v))?"—":(+v).toFixed(d)+"x"; }
+function fmt0(v){ return (v==null||isNaN(v))?"—":Math.round(+v).toLocaleString(); }
+
+/* ============================================================
+   FUND-LEVEL ROLL-UPS
+   ============================================================ */
+function fundRollup(){
+  const ps = state.portcos;
+  const n = ps.length;
+  if (n === 0){
+    return {n:0, invested:0, fmv:0, totalRev:0, totalEbitda:0, totalEntryEbitda:0, totalGrossProfit:0,
+            wtdMargin:null, wtdMOIC:null, irrApx:null, marg:0};
+  }
+  const tot = (k)=>ps.reduce((a,p)=>a+(+p[k]||0),0);
+  const invested = tot("invested");
+  const fmv = tot("curValue");
+  const totalRev = tot("curRev");
+  const totalEbitda = tot("curEbitda");
+  const totalEntryEbitda = tot("entryEbitda");
+  const totalGrossProfit = ps.reduce((a,p)=>a + (p.curRev*p.curGM||0),0);
+  const wtdMargin = totalRev>0 ? totalEbitda/totalRev : null;
+  const wtdHold = invested>0 ? ps.reduce((a,p)=>a+holdYears(p)*p.invested,0)/invested : null;
+  const wtdMOIC = invested>0 ? fmv/invested : null;
+  const irrApx = (wtdMOIC!=null && wtdHold>0) ? Math.pow(wtdMOIC, 1/wtdHold) - 1 : null;
+  const marg = ps.reduce((a,p)=>a+marginalBenefit(p),0);
+  return {n, invested, fmv, totalRev, totalEbitda, totalEntryEbitda, totalGrossProfit, wtdMargin, wtdMOIC, irrApx, marg};
+}
+
+/* ============================================================
+   RENDERERS
+   ============================================================ */
+const charts = {};
+function chart(id, cfg){
+  if(charts[id]){ charts[id].destroy(); }
+  const ctx = document.getElementById(id).getContext("2d");
+  charts[id] = new Chart(ctx, cfg);
+}
+
+function renderKPIs(){
+  const f = fundRollup();
+  const cards = [
+    { n:"1.1.1", label:"Portfolio companies", v: f.n, d: f.n===0 ? "drop a file in Data Lab" : "active in fund" },
+    { n:"1.1.2", label:"Total invested", v: fmtMshort(f.invested), d:"USD millions" },
+    { n:"1.1.3", label:"Fair value", v: fmtMshort(f.fmv), d:"USD millions" },
+    { n:"1.1.4", label:"Gross MOIC", v: f.wtdMOIC==null?"—":f.wtdMOIC.toFixed(2)+"x", d:"return multiple" },
+    { n:"1.1.5", label:"IRR", v: f.irrApx==null?"—":(f.irrApx*100).toFixed(1)+"%", d:"annualized return" },
+    { n:"1.1.6", label:"Total EBITDA", v: fmtMshort(f.totalEbitda), d:"trailing twelve months" },
+  ];
+  document.getElementById("kpiCards").innerHTML = cards.map(c=>`
+    <div class="panel kpi">
+      <h4><span class="num">${c.n}</span>${c.label}</h4>
+      <div class="v num">${c.v}</div>
+      <div class="d">${c.d}</div>
+    </div>`).join("");
+
+  // header pills
+  document.getElementById("asOfPill").textContent = "As of " + (state.settings.asof || new Date().toISOString().slice(0,10));
+}
+
+function renderOverviewCharts(){
+  const ps = state.portcos;
+
+  // Sector FMV pie
+  const bySectorFMV = {}; const bySectorInv = {};
+  ps.forEach(p=>{
+    bySectorFMV[p.sector] = (bySectorFMV[p.sector]||0)+p.curValue;
+    bySectorInv[p.sector] = (bySectorInv[p.sector]||0)+p.invested;
+  });
+  // Grayscale ramp with single gold accent — executive minimal
+  const palette = ["#111111","#525252","#737373","#a3a3a3","#d4d4d4","#b8860b"];
+
+  chart("chSectorFMV", {
+    type:"doughnut",
+    data:{labels:Object.keys(bySectorFMV),
+      datasets:[{data:Object.values(bySectorFMV).map(v=>+v.toFixed(1)), backgroundColor:palette}]},
+    options:{plugins:{legend:{labels:{color:"#111111"}}}, cutout:"62%"}
+  });
+  chart("chSectorInv", {
+    type:"doughnut",
+    data:{labels:Object.keys(bySectorInv),
+      datasets:[{data:Object.values(bySectorInv).map(v=>+v.toFixed(1)), backgroundColor:palette}]},
+    options:{plugins:{legend:{labels:{color:"#111111"}}}, cutout:"62%"}
+  });
+
+  // Status mix
+  const stat = {};
+  ps.forEach(p=>{ stat[p.status]=(stat[p.status]||0)+1 });
+  chart("chStatus",{
+    type:"polarArea",
+    data:{labels:Object.keys(stat),
+      datasets:[{data:Object.values(stat),
+        backgroundColor:["#16a34a","#111111","#f59e0b","#dc2626"]}]},
+    options:{plugins:{legend:{labels:{color:"#111111"}}}, scales:{r:{ticks:{color:"#6b7280"}, grid:{color:"#d8e2ee"}, angleLines:{color:"#d8e2ee"}}}}
+  });
+
+  // top/bottom contributors by $ value created
+  const sorted = [...ps].sort((a,b)=>valueCreatedAbs(b)-valueCreatedAbs(a));
+  const top5 = sorted.slice(0,5);
+  const bot5 = sorted.slice(-5).reverse();
+  const barOpts = {
+    indexAxis:"y",
+    plugins:{legend:{display:false}, tooltip:{callbacks:{label:c=>"$"+(+c.parsed.x).toLocaleString(undefined,{minimumFractionDigits:1,maximumFractionDigits:1})+"M"}}},
+    scales:{x:{ticks:{color:"#6b7280"}, grid:{color:"#f1f1f1"}}, y:{ticks:{color:"#111111"}, grid:{color:"#f1f1f1"}}}
+  };
+  chart("chTop5",{
+    type:"bar",
+    data:{labels:top5.map(p=>p.name), datasets:[{data:top5.map(p=>+valueCreatedAbs(p).toFixed(1)), backgroundColor:"#16a34a"}]},
+    options:barOpts
+  });
+  chart("chBot5",{
+    type:"bar",
+    data:{labels:bot5.map(p=>p.name), datasets:[{data:bot5.map(p=>+valueCreatedAbs(p).toFixed(1)), backgroundColor:bot5.map(p=>valueCreatedAbs(p)<0?"#dc2626":"#f59e0b")}]},
+    options:barOpts
+  });
+
+  // vintage curve
+  const byVintage = {};
+  ps.forEach(p=>{
+    const y = new Date(p.vintage).getFullYear();
+    if(!byVintage[y]) byVintage[y]={inv:0,fmv:0,n:0};
+    byVintage[y].inv += p.invested;
+    byVintage[y].fmv += p.curValue;
+    byVintage[y].n++;
+  });
+  const yrs = Object.keys(byVintage).sort();
+  chart("chVintage",{
+    type:"bar",
+    data:{labels:yrs,
+      datasets:[
+        {label:"Invested $M", data:yrs.map(y=>+byVintage[y].inv.toFixed(1)), backgroundColor:"#111111"},
+        {label:"Fair value $M", data:yrs.map(y=>+byVintage[y].fmv.toFixed(1)), backgroundColor:"#16a34a"}
+      ]},
+    options:{plugins:{legend:{labels:{color:"#111111"}}},
+      scales:{x:{ticks:{color:"#6b7280"}, grid:{color:"#f1f1f1"}}, y:{ticks:{color:"#6b7280"}, grid:{color:"#f1f1f1"}}}}
+  });
+
+  // fund ebitda timeline — sum of histories index-aligned
+  const ebitYears = ["Y-3","Y-2","Y-1","Current"];
+  const fundEbit = [0,0,0,0];
+  const fundRev = [0,0,0,0];
+  ps.forEach(p=>{
+    if(p.ebitdaHist && p.ebitdaHist.length===4) p.ebitdaHist.forEach((v,i)=>fundEbit[i]+=v);
+    if(p.revHist && p.revHist.length===4) p.revHist.forEach((v,i)=>fundRev[i]+=v);
+  });
+  chart("chFundEbitda",{
+    type:"bar",
+    data:{labels:ebitYears,
+      datasets:[
+        {type:"line", label:"Revenue $M", data:fundRev.map(v=>+v.toFixed(0)), borderColor:"#111111", backgroundColor:"rgba(74,144,226,.12)", yAxisID:"y1", tension:.3, fill:true},
+        {label:"EBITDA $M", data:fundEbit.map(v=>+v.toFixed(0)), backgroundColor:"#16a34a"}
+      ]},
+    options:{plugins:{legend:{labels:{color:"#111111"}}},
+      scales:{
+        x:{ticks:{color:"#6b7280"}, grid:{color:"#f1f1f1"}},
+        y:{position:"left", ticks:{color:"#6b7280"}, grid:{color:"#f1f1f1"}, title:{display:true,text:"EBITDA", color:"#6b7280"}},
+        y1:{position:"right", ticks:{color:"#6b7280"}, grid:{display:false}, title:{display:true,text:"Revenue", color:"#6b7280"}}
+      }}
+  });
+}
+
+/* ----- Leaderboard ----- */
+let lbSort = {key:"moic", dir:-1};
+function renderLeaderboard(){
+  // populate sector filter
+  const ss = document.getElementById("lbSector");
+  if(ss.options.length<=1){
+    SECTORS.forEach(s=>ss.add(new Option(s,s)));
+  }
+  const q = (document.getElementById("lbSearch").value||"").toLowerCase();
+  const fs = document.getElementById("lbSector").value;
+  const fst = document.getElementById("lbStatus").value;
+  const rankBy = document.getElementById("lbRankBy").value;
+
+  let rows = state.portcos.map(p=>({
+    name:p.name, sector:p.sector, vintage:p.vintage, hold:holdYears(p),
+    invested:p.invested, currentValue:p.curValue,
+    moic:moic(p), irr:irrApprox(p),
+    revCagr:revCagr(p), ebitdaCagr:ebitdaCagr(p),
+    ebitdaMargin:ebitdaMargin(p), status:p.status,
+    valueCreated:valueCreatedAbs(p),
+    id:p.id
+  }));
+  if(q) rows = rows.filter(r=>(r.name+" "+r.sector).toLowerCase().includes(q));
+  if(fs) rows = rows.filter(r=>r.sector===fs);
+  if(fst) rows = rows.filter(r=>r.status===fst);
+
+  rows.sort((a,b)=>(b[rankBy]||0)-(a[rankBy]||0));
+  rows.forEach((r,i)=>r.rank=i+1);
+
+  // resort if user clicked another column
+  if(lbSort.key!=="rank"){
+    rows.sort((a,b)=>{
+      const av=a[lbSort.key], bv=b[lbSort.key];
+      if(typeof av==="string") return av.localeCompare(bv)*lbSort.dir;
+      return ((av||0)-(bv||0))*lbSort.dir;
+    });
+  }
+
+  const tbody = document.querySelector("#lbTable tbody");
+  tbody.innerHTML = rows.map(r=>`
+    <tr class="row-link" onclick="dlg.openCompany('${r.id}')">
+      <td>${r.rank}</td>
+      <td><b>${r.name}</b></td>
+      <td>${r.sector}</td>
+      <td>${r.vintage}</td>
+      <td class="num">${r.hold.toFixed(1)}</td>
+      <td class="num">${r.invested.toFixed(1)}</td>
+      <td class="num">${r.currentValue.toFixed(1)}</td>
+      <td class="num ${r.moic>=1?'pos':'neg'}">${r.moic.toFixed(2)}x</td>
+      <td class="num ${r.irr>=0?'pos':'neg'}">${(r.irr*100).toFixed(1)}%</td>
+      <td class="num ${r.revCagr>=0?'pos':'neg'}">${(r.revCagr*100).toFixed(1)}%</td>
+      <td class="num ${(r.ebitdaCagr||0)>=0?'pos':'neg'}">${r.ebitdaCagr==null?"—":(r.ebitdaCagr*100).toFixed(1)+"%"}</td>
+      <td class="num">${(r.ebitdaMargin*100).toFixed(1)}%</td>
+      <td>${statusBadge(r.status)}</td>
+    </tr>
+  `).join("");
+
+  // sortmarks
+  document.querySelectorAll("#lbTable thead th").forEach(th=>{
+    const k = th.dataset.k;
+    const mark = th.querySelector(".sortmark");
+    if(!mark) return;
+    mark.textContent = (lbSort.key===k) ? (lbSort.dir>0?"▲":"▼") : "";
+  });
+}
+document.addEventListener("DOMContentLoaded",()=>{
+  document.querySelectorAll("#lbTable thead th").forEach(th=>{
+    th.addEventListener("click",()=>{
+      const k = th.dataset.k;
+      if(lbSort.key===k) lbSort.dir = -lbSort.dir;
+      else { lbSort.key=k; lbSort.dir=-1; }
+      renderLeaderboard();
+    });
+  });
+});
+
+function exportLeaderboardCSV(){
+  const rows = state.portcos.map(p=>({
+    company:p.name, sector:p.sector, vintage:p.vintage, status:p.status,
+    invested:p.invested, currentValue:p.curValue, moic:moic(p).toFixed(3),
+    irr_approx:(irrApprox(p)*100).toFixed(2)+"%",
+    rev_cagr:(revCagr(p)*100).toFixed(2)+"%",
+    ebitda_cagr:(ebitdaCagr(p)==null?"":(ebitdaCagr(p)*100).toFixed(2)+"%"),
+    margin:(ebitdaMargin(p)*100).toFixed(2)+"%",
+    entry_rev:p.entryRev, current_rev:p.curRev,
+    entry_ebitda:p.entryEbitda, current_ebitda:p.curEbitda,
+    entry_debt:p.entryDebt, current_debt:p.curDebt,
+    entry_mult:p.entryMult, current_mult:p.curMult
+  }));
+  const csv = Papa.unparse(rows);
+  downloadFile("leaderboard.csv", csv, "text/csv");
+}
+
+/* ----- Companies grid ----- */
+function renderCompanyGrid(){
+  const ss = document.getElementById("cgSector");
+  if(ss.options.length<=1){ SECTORS.forEach(s=>ss.add(new Option(s,s))); }
+  const q = (document.getElementById("cgSearch").value||"").toLowerCase();
+  const fs = document.getElementById("cgSector").value;
+  let list = state.portcos.slice();
+  if(q) list = list.filter(p=>(p.name+" "+p.sector).toLowerCase().includes(q));
+  if(fs) list = list.filter(p=>p.sector===fs);
+
+  const grid = document.getElementById("companyGrid");
+  if (!list.length){
+    grid.innerHTML = `<div class="panel" style="grid-column:1/-1;text-align:center;color:var(--muted);padding:40px">
+      <div style="font-size:14px;color:var(--ink);margin-bottom:6px">No portcos to show</div>
+      <div class="small">Drop a CSV/XLSX/PDF file in <b>Tab 7 — Data Lab</b>, click <b>+ Add new portco</b>, or <button class="btn" onclick="confirmReset()">Reset to demo data</button></div>
+    </div>`;
+    return;
+  }
+  grid.innerHTML = list.map(p=>{
+    const m = moic(p);
+    const ec = ebitdaCagr(p);
+    const isSel = window.__cgSel && window.__cgSel.has(p.id);
+    return `<div class="panel clickable" data-pid="${p.id}" style="position:relative;${isSel?'outline:2px solid var(--accent);':''}" onclick="dlg.openCompany('${p.id}')">
+      <input type="checkbox" ${isSel?'checked':''} onclick="event.stopPropagation(); cgToggle('${p.id}', this)" style="position:absolute;top:10px;left:10px;width:16px;height:16px;cursor:pointer;accent-color:var(--accent)" title="Select for bulk action"/>
+      <button title="Delete this portco" onclick="event.stopPropagation(); deletePortcoFromGrid('${p.id}', this)" style="position:absolute;top:8px;right:8px;background:transparent;border:1px solid var(--line);color:var(--muted);width:26px;height:26px;border-radius:6px;cursor:pointer;font-size:14px;line-height:1;padding:0">×</button>
+      <div class="ttl" style="padding:0 36px 0 30px"><b>${p.name}</b> <span class="hint">${p.sector}</span></div>
+      <div class="small" style="margin:4px 0 10px;padding-left:30px">${statusBadge(p.status)} <span style="margin-left:6px">vintage ${p.vintage}</span></div>
+      <div class="grid cards-3">
+        <div><div class="d small">MOIC</div><div class="num" style="font-size:18px;font-weight:700">${m.toFixed(2)}x</div></div>
+        <div><div class="d small">EBITDA CAGR</div><div class="num" style="font-size:18px;font-weight:700">${ec==null?"—":(ec*100).toFixed(1)+"%"}</div></div>
+        <div><div class="d small">Margin</div><div class="num" style="font-size:18px;font-weight:700">${(ebitdaMargin(p)*100).toFixed(1)}%</div></div>
+      </div>
+      <div style="margin-top:10px"><canvas height="60" id="sp_${p.id}"></canvas></div>
+    </div>`;
+  }).join("");
+  cgUpdateBulkUI();
+
+  // spark lines
+  list.forEach(p=>{
+    const el = document.getElementById("sp_"+p.id);
+    if(!el) return;
+    new Chart(el.getContext("2d"),{
+      type:"line",
+      data:{labels:["Y-3","Y-2","Y-1","Cur"], datasets:[{data:p.ebitdaHist||[], borderColor:"#16a34a", backgroundColor:"rgba(184,134,11,.20)", tension:.35, fill:true, pointRadius:0}]},
+      options:{plugins:{legend:{display:false}, tooltip:{enabled:false}},
+        scales:{x:{display:false}, y:{display:false}}, elements:{line:{borderWidth:2}}, animation:false}
+    });
+  });
+}
+
+/* ----- Value Creation tab ----- */
+function renderValueCreation(){
+  const ps = state.portcos;
+
+  // Fund bridge components (sum)
+  const ebGrowth = ps.reduce((a,p)=>a+ebitdaGrowthBridge(p),0);
+  const multExp  = ps.reduce((a,p)=>a+multipleBridge(p),0);
+  const debtPay  = ps.reduce((a,p)=>a+debtPaydown(p),0);
+  const startEq  = ps.reduce((a,p)=>a+p.invested,0);
+  const endEq    = ps.reduce((a,p)=>a+p.curValue,0);
+
+  // Chart 4.1: as waterfall-style stacked bar (start, +EBITDA, +mult, +debt, end)
+  chart("chBridge",{
+    type:"bar",
+    data:{
+      labels:["Invested equity","+ EBITDA growth","+ Multiple expansion","+ Debt paydown","= Current FMV"],
+      datasets:[{
+        data:[+startEq.toFixed(1), +ebGrowth.toFixed(1), +multExp.toFixed(1), +debtPay.toFixed(1), +endEq.toFixed(1)],
+        backgroundColor:["#111111","#16a34a","#737373","#f59e0b","#111111"],
+      }]
+    },
+    options:{plugins:{legend:{display:false}, tooltip:{callbacks:{label:c=>"$"+(+c.parsed.y).toLocaleString(undefined,{minimumFractionDigits:1,maximumFractionDigits:1})+"M"}}},
+      scales:{x:{ticks:{color:"#111111"}, grid:{color:"#f1f1f1"}}, y:{ticks:{color:"#6b7280"}, grid:{color:"#f1f1f1"}, title:{display:true,text:"", color:"#6b7280"}}}}
+  });
+
+  // 4.2: per-portco stacked bar
+  const labels = ps.map(p=>p.name);
+  chart("chBridgeStack",{
+    type:"bar",
+    data:{labels,
+      datasets:[
+        {label:"EBITDA growth", data:ps.map(p=>+ebitdaGrowthBridge(p).toFixed(1)), backgroundColor:"#16a34a"},
+        {label:"Multiple expansion", data:ps.map(p=>+multipleBridge(p).toFixed(1)), backgroundColor:"#737373"},
+        {label:"Debt paydown", data:ps.map(p=>+debtPaydown(p).toFixed(1)), backgroundColor:"#f59e0b"}
+      ]},
+    options:{plugins:{legend:{labels:{color:"#111111"}}, tooltip:{callbacks:{label:c=>c.dataset.label+": $"+(+c.parsed.y).toLocaleString(undefined,{minimumFractionDigits:1,maximumFractionDigits:1})+"M"}}},
+      scales:{x:{stacked:true, ticks:{color:"#111111", maxRotation:90, minRotation:60, font:{size:10}}, grid:{display:false}},
+        y:{stacked:true, ticks:{color:"#6b7280"}, grid:{color:"#f1f1f1"}, title:{display:true,text:"Value added", color:"#6b7280"}}}}
+  });
+
+  // 4.3 marginal benefit
+  chart("chMargBenefit",{
+    type:"bar",
+    data:{labels,
+      datasets:[{label:"Marginal benefit ($M EBITDA vs sector baseline)",
+        data:ps.map(p=>+marginalBenefit(p).toFixed(2)),
+        backgroundColor:ps.map(p=>marginalBenefit(p)>=0?"#16a34a":"#dc2626")}]},
+    options:{plugins:{legend:{labels:{color:"#111111"}}, tooltip:{callbacks:{label:c=>"$"+(+c.parsed.y).toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2})+"M vs sector"}}},
+      scales:{x:{ticks:{color:"#111111", maxRotation:90, minRotation:60, font:{size:10}}, grid:{display:false}},
+        y:{ticks:{color:"#6b7280"}, grid:{color:"#f1f1f1"}, title:{display:true,text:"", color:"#6b7280"}}}}
+  });
+
+  // 4.4 detail table
+  const tb = document.querySelector("#bridgeTable tbody");
+  tb.innerHTML = ps.map(p=>{
+    const eg=ebitdaGrowthBridge(p), me=multipleBridge(p), dp=debtPaydown(p), t = eg+me+dp;
+    const pe = t===0?0:eg/t, pm = t===0?0:me/t, pd = t===0?0:dp/t;
+    return `<tr class="row-link" onclick="dlg.openCompany('${p.id}')">
+      <td><b>${p.name}</b></td>
+      <td>${p.sector}</td>
+      <td class="num">${p.entryEV.toFixed(1)}</td>
+      <td class="num">${p.curEV.toFixed(1)}</td>
+      <td class="num">${eg.toFixed(1)}</td>
+      <td class="num">${me.toFixed(1)}</td>
+      <td class="num">${dp.toFixed(1)}</td>
+      <td class="num ${t>=0?'pos':'neg'}"><b>${t.toFixed(1)}</b></td>
+      <td class="num">${(pe*100).toFixed(0)}%</td>
+      <td class="num">${(pm*100).toFixed(0)}%</td>
+      <td class="num">${(pd*100).toFixed(0)}%</td>
+    </tr>`;
+  }).join("");
+}
+
+/* ----- Operational KPIs ----- */
+function renderOpsKPIs(){
+  const ps = state.portcos;
+
+  // heatmap rows: portcos, cols: margin Δ bps, rev Δ %, ebitda Δ %, headcount Δ %, NRR (if SaaS), CAC payback
+  const cols = ["Margin Δ (bps)","Revenue Δ%","EBITDA Δ%","Headcount Δ%","NRR (SaaS)","CAC payback (mo)"];
+  const rows = ps.map(p=>{
+    const mDelta = (ebitdaMargin(p) - (p.entryEbitda/p.entryRev))*10000;
+    const rD = (p.curRev/p.entryRev - 1)*100;
+    const eD = (p.curEbitda/p.entryEbitda - 1)*100;
+    const hD = (p.hcCur/p.hcEntry - 1)*100;
+    return {name:p.name, sector:p.sector, vals:[mDelta, rD, eD, hD, p.nrr, p.cacPayback]};
+  });
+  // color scale per column: good is positive (or low for CAC)
+  function color(col, v){
+    if(v==null||isNaN(v)) return "#2a3461";
+    const pos = (col===5) ? (v<24?1:-1) : (v>=0?1:-1);
+    if(col===4 && v!=null){ return v>=110?"#16a34a":v>=100?"#b8860b":v>=95?"#f59e0b":"#dc2626"; }
+    if(col===5 && v!=null){ return v<=18?"#16a34a":v<=24?"#f59e0b":"#dc2626"; }
+    const mag = Math.min(1, Math.abs(v)/(col===0?500:60));
+    if(pos>0){ return `rgba(123,227,196,${0.25+mag*0.6})`; }
+    return `rgba(255,107,138,${0.25+mag*0.6})`;
+  }
+  const hm = `<table><thead><tr><th>Company</th><th>Sector</th>${cols.map(c=>`<th style="text-align:center">${c}</th>`).join("")}</tr></thead>
+    <tbody>${rows.map(r=>`<tr>
+      <td class="lbl"><b>${r.name}</b></td><td class="lbl small">${r.sector}</td>
+      ${r.vals.map((v,i)=>{
+        let txt = v==null?"—":(i===0?(v.toFixed(0)+"bps"):i===4?v.toFixed(0):i===5?v.toFixed(0):v.toFixed(1)+"%");
+        return `<td style="background:${color(i,v)}">${txt}</td>`;
+      }).join("")}
+    </tr>`).join("")}</tbody></table>`;
+  document.getElementById("heatmapWrap").innerHTML = hm;
+
+  // 5.2 margin entry vs current
+  chart("chMargin",{
+    type:"bar",
+    data:{labels:ps.map(p=>p.name),
+      datasets:[
+        {label:"Entry margin", data:ps.map(p=>+((p.entryEbitda/p.entryRev)*100).toFixed(1)), backgroundColor:"#111111"},
+        {label:"Current margin", data:ps.map(p=>+((p.curEbitda/p.curRev)*100).toFixed(1)), backgroundColor:"#16a34a"}
+      ]},
+    options:{plugins:{legend:{labels:{color:"#111111"}}},
+      scales:{x:{ticks:{color:"#111111", maxRotation:90, minRotation:60, font:{size:10}}, grid:{display:false}},
+        y:{ticks:{color:"#6b7280", callback:v=>v+"%"}, grid:{color:"#f1f1f1"}}}}
+  });
+
+  // 5.3 headcount top 10 growth
+  const ranked = [...ps].sort((a,b)=>(b.hcCur/b.hcEntry)-(a.hcCur/a.hcEntry)).slice(0,10);
+  chart("chHeadcount",{
+    type:"bar",
+    data:{labels:ranked.map(p=>p.name),
+      datasets:[
+        {label:"Entry HC", data:ranked.map(p=>p.hcEntry), backgroundColor:"#111111"},
+        {label:"Current HC", data:ranked.map(p=>p.hcCur), backgroundColor:"#16a34a"}
+      ]},
+    options:{plugins:{legend:{labels:{color:"#111111"}}},
+      scales:{x:{ticks:{color:"#111111", maxRotation:60, minRotation:45, font:{size:10}}, grid:{display:false}},
+        y:{ticks:{color:"#6b7280"}, grid:{color:"#f1f1f1"}}}}
+  });
+
+  // 5.4 SaaS bubble: NRR vs CAC payback, bubble size ∝ √revenue, one dataset per portco for clean labels
+  const saas = ps.filter(p=>p.nrr!=null && p.cacPayback!=null);
+  const allSaaS = ps.filter(p=>p.sector==="B2B Software" || p.nrr!=null);
+  const saasCanvas = document.getElementById("chSaaS");
+  // Diagnostic: replace canvas with a helpful message if no plottable data
+  const parent = saasCanvas.parentElement;
+  let diag = document.getElementById("chSaaSDiag");
+  if (!saas.length){
+    if (charts["chSaaS"]) { charts["chSaaS"].destroy(); delete charts["chSaaS"]; }
+    saasCanvas.style.display = "none";
+    if (!diag){
+      diag = document.createElement("div");
+      diag.id = "chSaaSDiag";
+      diag.style.cssText = "display:flex;align-items:center;justify-content:center;height:340px;color:var(--muted);text-align:center;padding:20px;flex-direction:column;gap:6px";
+      parent.appendChild(diag);
+    }
+    diag.style.display = "flex";
+    if (allSaaS.length){
+      diag.innerHTML = `
+        <div style="font-weight:600;color:var(--ink)">Nothing to plot yet</div>
+        <div class="small">You have <b>${allSaaS.length}</b> software portfolio companies, but none have both <b>NRR</b> and <b>CAC payback</b> filled in.</div>
+        <div class="small">Open any company in <b>Tab 3</b> and add those two fields, or upload a file with columns <code>nrr</code> and <code>cacPayback</code>.</div>`;
+    } else {
+      diag.innerHTML = `
+        <div style="font-weight:600;color:var(--ink)">No software portfolio companies yet</div>
+        <div class="small">This view shows retention-vs-payback for B2B software companies. Add one in <b>Tab 7 — Data Lab</b>.</div>`;
+    }
+  } else {
+    saasCanvas.style.display = "";
+    if (diag) diag.style.display = "none";
+    chart("chSaaS",{
+      type:"bubble",
+      data:{datasets:[{
+        label: "Portfolio companies",
+        data: saas.map(p=>({x: p.nrr, y: p.cacPayback, r: Math.max(10, Math.min(28, Math.sqrt(p.curRev||1)*1.8)), name: p.name, rev: p.curRev||0})),
+        backgroundColor: saas.map(p => p.nrr>=110 ? "rgba(184,134,11,.30)" : "rgba(17,17,17,.18)"),
+        borderColor: saas.map(p => p.nrr>=110 ? "#b8860b" : "#111111"),
+        borderWidth: 1.2
+      }]},
+      options:{
+        responsive:true, maintainAspectRatio:false,
+        plugins:{
+          legend:{display:false},
+          tooltip:{callbacks:{
+            title:c=>c[0].raw.name,
+            label:c=>[`NRR: ${c.raw.x}%`, `CAC payback: ${c.raw.y} months`, `Revenue: $${(+c.raw.rev).toFixed(1)}M`]
+          }},
+          title:{display:false}
+        },
+        scales:{
+          x:{title:{display:true,text:"NRR", color:"#6b7280", font:{size:11}}, ticks:{color:"#6b7280", callback:v=>v+"%"}, grid:{color:"#f1f1f1"}, border:{display:false}},
+          y:{title:{display:true,text:"CAC payback (months)", color:"#6b7280", font:{size:11}}, ticks:{color:"#6b7280"}, grid:{color:"#f1f1f1"}, suggestedMin:0, border:{display:false}}
+        }
+      }
+    });
+  }
+}
+
+/* ----- Sector cuts ----- */
+function renderSectors(){
+  const ps = state.portcos;
+  const bySec = {};
+  ps.forEach(p=>{
+    const s = bySec[p.sector] ||= {n:0,inv:0,fmv:0,eY0:0,eN:0,rY0:0,rN:0, holdSum:0};
+    s.n++; s.inv+=p.invested; s.fmv+=p.curValue;
+    s.eY0+=p.entryEbitda; s.eN+=p.curEbitda;
+    s.rY0+=p.entryRev; s.rN+=p.curRev;
+    s.holdSum += holdYears(p)*p.invested;
+  });
+  const rows = Object.entries(bySec).map(([s,v])=>{
+    const wtdHold = v.holdSum/v.inv;
+    const moicW = v.fmv/v.inv;
+    const eCagr = Math.pow(v.eN/v.eY0, 1/wtdHold)-1;
+    const rCagr = Math.pow(v.rN/v.rY0, 1/wtdHold)-1;
+    const marginDelta = (v.eN/v.rN - v.eY0/v.rY0)*10000;
+    return {sec:s, ...v, moicW, eCagr, rCagr, marginDelta};
+  }).sort((a,b)=>b.moicW-a.moicW);
+
+  document.querySelector("#sectorTable tbody").innerHTML = rows.map(r=>`<tr>
+    <td><b>${r.sec}</b></td>
+    <td>${r.n}</td>
+    <td class="num">${r.inv.toFixed(1)}</td>
+    <td class="num">${r.fmv.toFixed(1)}</td>
+    <td class="num ${r.moicW>=1?'pos':'neg'}">${r.moicW.toFixed(2)}x</td>
+    <td class="num">${r.eY0.toFixed(1)}</td>
+    <td class="num">${r.eN.toFixed(1)}</td>
+    <td class="num ${r.eCagr>=0?'pos':'neg'}">${(r.eCagr*100).toFixed(1)}%</td>
+    <td class="num">${r.rY0.toFixed(1)}</td>
+    <td class="num">${r.rN.toFixed(1)}</td>
+    <td class="num ${r.rCagr>=0?'pos':'neg'}">${(r.rCagr*100).toFixed(1)}%</td>
+    <td class="num ${r.marginDelta>=0?'pos':'neg'}">${r.marginDelta.toFixed(0)} bps</td>
+  </tr>`).join("");
+
+  chart("chSecMOIC",{
+    type:"bar",
+    data:{labels:rows.map(r=>r.sec),
+      datasets:[{data:rows.map(r=>+r.moicW.toFixed(2)),
+        backgroundColor:rows.map(r=>r.moicW>=2?"#16a34a":r.moicW>=1?"#111111":"#dc2626")}]},
+    options:{plugins:{legend:{display:false}},
+      scales:{x:{ticks:{color:"#111111"}, grid:{display:false}},
+        y:{ticks:{color:"#6b7280", callback:v=>v+"x"}, grid:{color:"#f1f1f1"}}}}
+  });
+
+  // scatter entry vs current multiple
+  chart("chMultScatter",{
+    type:"scatter",
+    data:{datasets:[{
+      data:ps.map(p=>({x:p.entryMult, y:p.curMult, name:p.name, sector:p.sector, ev:p.curEV})),
+      pointRadius:ps.map(p=>Math.max(5, Math.min(22, p.curEV/30))),
+      pointBackgroundColor:ps.map(p=>{
+        const i = SECTORS.indexOf(p.sector);
+        return ["#111111","#16a34a","#f59e0b","#dc2626","#737373"][i] || "#111111";
+      })
+    }]},
+    options:{plugins:{legend:{display:false},
+      tooltip:{callbacks:{label:c=>`${c.raw.name}: ${c.raw.x.toFixed(1)}x → ${c.raw.y.toFixed(1)}x (EV $${c.raw.ev.toFixed(0)}M)`}}},
+      scales:{
+        x:{title:{display:true,text:"Entry multiple", color:"#6b7280"}, ticks:{color:"#6b7280"}, grid:{color:"#f1f1f1"}},
+        y:{title:{display:true,text:"Current multiple", color:"#6b7280"}, ticks:{color:"#6b7280"}, grid:{color:"#f1f1f1"}}}}
+  });
+}
+
+/* ============================================================
+   DRILL-DOWN MODAL
+   ============================================================ */
+const dlg = {
+  openCompany(id){
+    let p, isNew=false;
+    if(id==="__new__"){ isNew=true; p = blankPortco(); }
+    else p = state.portcos.find(x=>x.id===id);
+    if(!p) return;
+
+    document.getElementById("cm_title").textContent = isNew ? "Add a new portco" : p.name;
+    document.getElementById("cm_sub").innerHTML = isNew ? "fill the fields and save" : `${p.sector} · vintage ${p.vintage} · ${statusBadge(p.status)}`;
+
+    const body = document.getElementById("cm_body");
+    body.innerHTML = `
+      <div class="grid cards-4">
+        <div class="panel kpi"><h4><span class="num">a</span>Invested</h4><div class="v num">${fmtMshort(p.invested)}</div></div>
+        <div class="panel kpi"><h4><span class="num">b</span>Fair value</h4><div class="v num">${fmtMshort(p.curValue)}</div></div>
+        <div class="panel kpi"><h4><span class="num">c</span>MOIC</h4><div class="v num">${moic(p).toFixed(2)}x</div></div>
+        <div class="panel kpi"><h4><span class="num">d</span>IRR (approx)</h4><div class="v num">${(irrApprox(p)*100).toFixed(1)}%</div></div>
+      </div>
+
+      <h3 style="margin-top:14px"><span class="ord">a.</span>Key notes</h3>
+      <div class="panel" id="mc_notes_panel"></div>
+
+      <h3 style="margin-top:14px"><span class="ord">b.</span>P&L history</h3>
+      <div class="panel"><div class="chart-wrap lg"><canvas id="mc_pl"></canvas></div></div>
+
+      <h3 style="margin-top:14px"><span class="ord">c.</span>Value bridge</h3>
+      <div class="panel"><div class="chart-wrap"><canvas id="mc_br"></canvas></div></div>
+
+      <h3 style="margin-top:14px"><span class="ord">d.</span>Editable fields</h3>
+      <div class="panel">
+        ${formEditHTML(p)}
+        <div class="toolbar" style="margin-top:8px">
+          <button class="btn primary" onclick="dlg.save('${p.id}', ${isNew})">${isNew?"Add portco":"Save changes"}</button>
+          ${isNew?"":`<button class="btn danger" onclick="dlg.remove('${p.id}')">Delete portco</button>`}
+        </div>
+        <h3 style="margin-top:14px"><span class="ord">e.</span>Custom fields <small style="color:var(--muted);font-weight:400">— anything else you want to track on this portco</small></h3>
+        <div id="customFieldsWrap"></div>
+        <div class="toolbar"><button class="btn" onclick="addCustomFieldRow()">+ Add custom field</button>
+          <span class="small">Suggestions: <a href="#" onclick="quickAddCustom('Top customer','');return false">Top customer</a> · <a href="#" onclick="quickAddCustom('Top 10 suppliers','');return false">Top 10 suppliers</a> · <a href="#" onclick="quickAddCustom('Customer concentration %','');return false">Customer concentration %</a> · <a href="#" onclick="quickAddCustom('Cash on hand $M','');return false">Cash on hand</a> · <a href="#" onclick="quickAddCustom('Board chair','');return false">Board chair</a> · <a href="#" onclick="quickAddCustom('Last board date','');return false">Last board date</a></span>
+        </div>
+        <h3 style="margin-top:14px"><span class="ord">f.</span>Narrative / notes</h3>
+        <div class="field"><textarea id="ed_notes" rows="3">${(p.notes||"").replace(/</g,'&lt;')}</textarea></div>
+      </div>
+    `;
+    // populate custom fields + key notes
+    renderCustomFields(p.custom || {});
+    renderKeyNotes(p);
+    document.getElementById("companyModal").classList.add("open");
+
+    // PL chart
+    setTimeout(()=>{
+      new Chart(document.getElementById("mc_pl").getContext("2d"),{
+        type:"bar",
+        data:{labels:["Y-3","Y-2","Y-1","Current"],
+          datasets:[
+            {type:"line", label:"Revenue $M", data:p.revHist||[], borderColor:"#111111", backgroundColor:"rgba(74,144,226,.12)", fill:true, tension:.3, yAxisID:"y1"},
+            {label:"EBITDA $M", data:p.ebitdaHist||[], backgroundColor:"#16a34a"}
+          ]},
+        options:{plugins:{legend:{labels:{color:"#111111"}}},
+          scales:{x:{ticks:{color:"#111111"}, grid:{color:"#f1f1f1"}},
+            y:{ticks:{color:"#6b7280"}, grid:{color:"#f1f1f1"}, title:{display:true,text:"EBITDA", color:"#6b7280"}},
+            y1:{position:"right", ticks:{color:"#6b7280"}, grid:{display:false}, title:{display:true,text:"Revenue", color:"#6b7280"}}}}
+      });
+      new Chart(document.getElementById("mc_br").getContext("2d"),{
+        type:"bar",
+        data:{labels:["EBITDA growth","Multiple expansion","Debt paydown"],
+          datasets:[{data:[+ebitdaGrowthBridge(p).toFixed(1),+multipleBridge(p).toFixed(1),+debtPaydown(p).toFixed(1)],
+            backgroundColor:["#16a34a","#737373","#f59e0b"]}]},
+        options:{plugins:{legend:{display:false},
+          tooltip:{callbacks:{label:c=>"$"+(+c.parsed.y).toLocaleString(undefined,{minimumFractionDigits:1,maximumFractionDigits:1})+"M"}}},
+          scales:{x:{ticks:{color:"#111111"}, grid:{display:false}},
+            y:{ticks:{color:"#6b7280"}, grid:{color:"#f1f1f1"}, title:{display:true,text:"Value added", color:"#6b7280"}}}}
+      });
+    },20);
+  },
+  close(){ document.getElementById("companyModal").classList.remove("open"); },
+  help(){ document.getElementById("helpModal").classList.add("open"); },
+  closeHelp(){ document.getElementById("helpModal").classList.remove("open"); },
+  save(id, isNew){
+    const get = (k, num)=>{ const v=document.getElementById("ed_"+k).value; return num?(v===""?null:+v):v; };
+    const patch = {
+      name:get("name"),
+      sector:get("sector"),
+      status:get("status"),
+      vintage:get("vintage"),
+      invested:get("invested",1),
+      entryRev:get("entryRev",1), entryEbitda:get("entryEbitda",1), entryDebt:get("entryDebt",1), entryMult:get("entryMult",1),
+      curRev:get("curRev",1), curEbitda:get("curEbitda",1), curDebt:get("curDebt",1), curMult:get("curMult",1),
+      hcEntry:get("hcEntry",1), hcCur:get("hcCur",1), nrr:get("nrr",1), cacPayback:get("cacPayback",1),
+      notes:document.getElementById("ed_notes").value,
+      custom: collectCustomFields()
+    };
+    patch.entryGM = 0.5; patch.curGM = 0.5; // user can refine in template
+    patch.revHist = [patch.entryRev*0.85, patch.entryRev, (patch.entryRev+patch.curRev)/2, patch.curRev];
+    patch.ebitdaHist = [patch.entryEbitda*0.8, patch.entryEbitda, (patch.entryEbitda+patch.curEbitda)/2, patch.curEbitda];
+    if(isNew){
+      patch.id = "u_"+Date.now();
+      state.portcos.push(P(patch));
+    } else {
+      const i = state.portcos.findIndex(p=>p.id===id);
+      Object.assign(state.portcos[i], patch);
+      state.portcos[i] = P(state.portcos[i]);
+    }
+    state.source = "manual";
+    saveState(); refreshAll(); dlg.close();
+    toast(isNew?"Portco added":"Saved");
+  },
+  remove(id){
+    if(!confirm("Delete this portco from local data?")) return;
+    state.portcos = state.portcos.filter(p=>p.id!==id);
+    state.source = "manual";
+    saveState(); refreshAll(); dlg.close(); toast("Portco removed");
+  }
+};
+
+function blankPortco(){
+  return P({id:"__new__", name:"", sector:SECTORS[0], status:"On plan", vintage:new Date().toISOString().slice(0,10),
+    invested:0, entryRev:1, entryEbitda:0.1, entryGM:0.5, entryDebt:0, entryMult:8,
+    curRev:1, curEbitda:0.1, curGM:0.5, curDebt:0, curMult:8,
+    hcEntry:0, hcCur:0, nrr:null, cacPayback:null, revHist:[0,0,0,0], ebitdaHist:[0,0,0,0], notes:""});
+}
+
+function formEditHTML(p){
+  const sectorOpts = SECTORS.map(s=>`<option ${s===p.sector?"selected":""}>${s}</option>`).join("");
+  const statusOpts = ["Outperforming","On plan","Underperforming","Distressed"].map(s=>`<option ${s===p.status?"selected":""}>${s}</option>`).join("");
+  return `
+    <div class="row r-4">
+      <div class="field"><label>Name</label><input id="ed_name" value="${p.name||""}"/></div>
+      <div class="field"><label>Sector</label><select id="ed_sector">${sectorOpts}</select></div>
+      <div class="field"><label>Status</label><select id="ed_status">${statusOpts}</select></div>
+      <div class="field"><label>Vintage</label><input id="ed_vintage" type="date" value="${p.vintage||""}"/></div>
+    </div>
+    <div class="row r-4">
+      <div class="field"><label>Invested $M</label><input id="ed_invested" type="number" step="0.1" value="${p.invested}"/></div>
+      <div class="field"><label>Entry rev $M</label><input id="ed_entryRev" type="number" step="0.1" value="${p.entryRev}"/></div>
+      <div class="field"><label>Entry EBITDA $M</label><input id="ed_entryEbitda" type="number" step="0.1" value="${p.entryEbitda}"/></div>
+      <div class="field"><label>Entry net debt $M</label><input id="ed_entryDebt" type="number" step="0.1" value="${p.entryDebt}"/></div>
+    </div>
+    <div class="row r-4">
+      <div class="field"><label>Entry multiple</label><input id="ed_entryMult" type="number" step="0.1" value="${p.entryMult}"/></div>
+      <div class="field"><label>Current rev $M</label><input id="ed_curRev" type="number" step="0.1" value="${p.curRev}"/></div>
+      <div class="field"><label>Current EBITDA $M</label><input id="ed_curEbitda" type="number" step="0.1" value="${p.curEbitda}"/></div>
+      <div class="field"><label>Current net debt $M</label><input id="ed_curDebt" type="number" step="0.1" value="${p.curDebt}"/></div>
+    </div>
+    <div class="row r-4">
+      <div class="field"><label>Current multiple</label><input id="ed_curMult" type="number" step="0.1" value="${p.curMult}"/></div>
+      <div class="field"><label>Entry HC</label><input id="ed_hcEntry" type="number" value="${p.hcEntry||0}"/></div>
+      <div class="field"><label>Current HC</label><input id="ed_hcCur" type="number" value="${p.hcCur||0}"/></div>
+      <div class="field"><label>NRR % (SaaS)</label><input id="ed_nrr" type="number" step="0.1" value="${p.nrr ?? ""}"/></div>
+    </div>
+    <div class="row r-4">
+      <div class="field"><label>CAC payback (mo)</label><input id="ed_cacPayback" type="number" step="0.1" value="${p.cacPayback ?? ""}"/></div>
+    </div>
+  `;
+}
+
+/* ============================================================
+   DATA LAB: import / export / forms
+   ============================================================ */
+function downloadFile(name, content, type){
+  const blob = new Blob([content], {type});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href=url; a.download=name; document.body.appendChild(a); a.click();
+  setTimeout(()=>{URL.revokeObjectURL(url); a.remove()}, 200);
+}
+function downloadTemplateCSV(){
+  const headers = ["id","name","sector","status","vintage","invested","entryRev","entryEbitda","entryGM","entryDebt","entryMult","curRev","curEbitda","curGM","curDebt","curMult","hcEntry","hcCur","nrr","cacPayback","notes"];
+  const sample = state.portcos.slice(0,2).map(p=>headers.map(h=>p[h]??""));
+  const csv = Papa.unparse([headers, ...sample]);
+  downloadFile("portco_template.csv", csv, "text/csv");
+}
+function downloadTemplateXLSX(){
+  const ws_data = [
+    ["id","name","sector","status","vintage","invested","entryRev","entryEbitda","entryGM","entryDebt","entryMult","curRev","curEbitda","curGM","curDebt","curMult","hcEntry","hcCur","nrr","cacPayback","notes"],
+    ...state.portcos.slice(0,3).map(p=>["id","name","sector","status","vintage","invested","entryRev","entryEbitda","entryGM","entryDebt","entryMult","curRev","curEbitda","curGM","curDebt","curMult","hcEntry","hcCur","nrr","cacPayback","notes"].map(h=>p[h]??""))
+  ];
+  const wb = XLSX.utils.book_new();
+  const ws = XLSX.utils.aoa_to_sheet(ws_data);
+  XLSX.utils.book_append_sheet(wb, ws, "Portcos");
+  const out = XLSX.write(wb, {bookType:"xlsx", type:"array"});
+  downloadFile("portco_template.xlsx", out, "application/octet-stream");
+}
+function downloadJSONsnapshot(){
+  downloadFile("portfolio_snapshot_"+new Date().toISOString().slice(0,10)+".json", JSON.stringify(state, null, 2), "application/json");
+}
+function snapshotSession(){ downloadJSONsnapshot(); }
+function confirmReset(){
+  if(!confirm("Reset to demo data? This wipes any edits.")) return;
+  state = seedState(); saveState(); refreshAll(); toast("Reset to demo");
+}
+
+/* ============================================================
+   FORGIVING HEADER MAPPING — accepts a wide range of synonyms so
+   that finance teams' actual exports parse on first try.
+   ============================================================ */
+const HEADER_MAP = {
+  id:          ["id","company id","portco id","key","ref","reference"],
+  name:        ["name","company","company name","portco","portfolio company","entity","investment"],
+  sector:      ["sector","industry","vertical","segment","gics"],
+  status:      ["status","performance","state","health"],
+  vintage:     ["vintage","vintage date","acquisition date","acq date","close date","investment date","acquired","date acquired"],
+  invested:    ["invested","invested capital","equity check","equity invested","investment","capital invested","cost basis","invested $m","invested $"],
+  entryRev:    ["entryrev","entry revenue","revenue at entry","rev y0","revenue y0","revenue 0","entry rev","initial revenue","revenue at acquisition"],
+  entryEbitda: ["entryebitda","entry ebitda","ebitda at entry","ebitda y0","entry ebitda $m","initial ebitda","ebitda at acquisition"],
+  entryGM:     ["entrygm","entry gm","entry gross margin","gross margin at entry","gm y0","entry gross margin %"],
+  entryDebt:   ["entrydebt","entry debt","entry net debt","net debt at entry","debt y0","initial debt","debt at acquisition"],
+  entryMult:   ["entrymult","entry mult","entry multiple","ev/ebitda at entry","entry ev/ebitda","entry ev multiple","ev multiple entry"],
+  curRev:      ["currev","cur rev","current revenue","revenue","ttm revenue","revenue ttm","ltm revenue","revenue ltm","revenue current","current rev","sales","net sales"],
+  curEbitda:   ["curebitda","cur ebitda","current ebitda","ebitda","ttm ebitda","ltm ebitda","adj ebitda","adjusted ebitda","ebitda current"],
+  curGM:       ["curgm","cur gm","current gross margin","gross margin","gm","gm current","current gross margin %"],
+  curDebt:     ["curdebt","cur debt","current debt","current net debt","net debt","debt","total debt","debt outstanding","debt current"],
+  curMult:     ["curmult","cur mult","current multiple","ev/ebitda current","current ev/ebitda","ev multiple","current ev multiple","ev/ebitda"],
+  hcEntry:     ["hcentry","hc entry","headcount entry","headcount at entry","employees entry","employees at entry","ftes entry","starting headcount"],
+  hcCur:       ["hccur","hc cur","hc current","current headcount","headcount","employees","ftes","headcount current","current employees"],
+  nrr:         ["nrr","net revenue retention","net retention","net retention %"],
+  cacPayback:  ["cacpayback","cac payback","cac payback months","payback period","payback","cac payback (mo)"],
+  notes:       ["notes","comments","narrative","commentary","note","description"]
+};
+
+function _normHeader(s){ return String(s||"").toLowerCase().trim().replace(/[\s_\-\/]+/g," ").replace(/\s+/g," "); }
+
+function buildHeaderLookup(rowKeys){
+  const lookup = {};
+  const found = new Set();
+  for (const [canon, syns] of Object.entries(HEADER_MAP)){
+    for (const k of rowKeys){
+      const norm = _normHeader(k);
+      if (syns.includes(norm) || syns.includes(norm.replace(/\s/g,""))){
+        lookup[canon] = k; found.add(k); break;
+      }
+    }
+  }
+  return {lookup, foundKeys:[...found], allKeys:rowKeys};
+}
+
+function _num(v){ if(v==null||v==="") return null; const n = +String(v).replace(/[$,\s%]/g,""); return isNaN(n)?null:n; }
+
+function ingestRows(rows){
+  // Filter junk rows: PapaParse may include comment-style rows starting with "#"
+  rows = rows.filter(r=>{
+    if (!r || typeof r !== "object") return false;
+    const vals = Object.values(r);
+    if (vals.every(v=>v==null||v==="")) return false;
+    // skip rows where the first cell starts with # (comment)
+    const firstKey = Object.keys(r)[0];
+    if (typeof r[firstKey] === "string" && r[firstKey].trim().startsWith("#")) return false;
+    return true;
+  });
+  if (!rows.length){ toast("File looks empty"); return; }
+
+  const sample = rows[0];
+  const {lookup, allKeys} = buildHeaderLookup(Object.keys(sample));
+
+  // Need at least a name column to proceed
+  if (!lookup.name){
+    showImportError(
+      "Could not find a 'name' / 'company' column in your file.",
+      allKeys, lookup
+    );
+    return;
+  }
+
+  // Any column NOT in our canonical lookup becomes a "custom field" on each row
+  const mappedKeys = new Set(Object.values(lookup));
+  const customColumns = Object.keys(sample).filter(k => !mappedKeys.has(k));
+
+  const merged = [];
+  const skipped = [];
+  rows.forEach((r, idx)=>{
+    const get = (canon)=>{ const k = lookup[canon]; return k? r[k] : undefined; };
+    const name = String(get("name")||"").trim();
+    if (!name) { skipped.push(idx+2); return; }
+
+    // collect anything unmapped into custom (preserve numeric values; trim strings)
+    const custom = {};
+    customColumns.forEach(col=>{
+      const v = r[col];
+      if (v == null || v === "") return;
+      // try to parse as a number, but keep as string if not numeric
+      const n = _num(v);
+      custom[col] = (n != null && !isNaN(n) && /^[\s$,()0-9.\-+%]+$/.test(String(v).trim())) ? n : String(v).trim();
+    });
+
+    const p = {
+      id: String(get("id")||"").trim() || ("imp_"+Math.random().toString(36).slice(2,7)),
+      name,
+      sector: String(get("sector")||SECTORS[0]).trim(),
+      status: String(get("status")||"On plan").trim(),
+      vintage: String(get("vintage")||new Date().toISOString().slice(0,10)).slice(0,10),
+      invested:    _num(get("invested"))    ?? 0,
+      entryRev:    _num(get("entryRev"))    ?? 1,
+      entryEbitda: _num(get("entryEbitda")) ?? 0.1,
+      entryGM:     _num(get("entryGM"))     ?? 0.5,
+      entryDebt:   _num(get("entryDebt"))   ?? 0,
+      entryMult:   _num(get("entryMult"))   ?? 8,
+      curRev:      _num(get("curRev"))      ?? 1,
+      curEbitda:   _num(get("curEbitda"))   ?? 0.1,
+      curGM:       _num(get("curGM"))       ?? 0.5,
+      curDebt:     _num(get("curDebt"))     ?? 0,
+      curMult:     _num(get("curMult"))     ?? 8,
+      hcEntry:     _num(get("hcEntry"))     ?? 0,
+      hcCur:       _num(get("hcCur"))       ?? 0,
+      nrr:         _num(get("nrr")),
+      cacPayback:  _num(get("cacPayback")),
+      notes: String(get("notes")||""),
+      custom
+    };
+    p.revHist = [p.entryRev*0.85, p.entryRev, (p.entryRev+p.curRev)/2, p.curRev];
+    p.ebitdaHist = [p.entryEbitda*0.8, p.entryEbitda, (p.entryEbitda+p.curEbitda)/2, p.curEbitda];
+    merged.push(P(p));
+  });
+
+  if (!merged.length){
+    showImportError("No data rows had a non-empty 'name' field.", allKeys, lookup);
+    return;
+  }
+
+  // Optional: replace mode
+  const replace = document.getElementById("importReplace")?.checked;
+  if (replace){
+    state.portcos = merged.slice();
+  } else {
+    merged.forEach(np=>{
+      const i = state.portcos.findIndex(p => (p.id && p.id===np.id) || p.name===np.name);
+      if(i>=0) state.portcos[i] = np; else state.portcos.push(np);
+    });
+  }
+  state.source = "import";
+  saveState(); refreshAll();
+  showImportSuccess(merged.length, lookup, allKeys, skipped);
+}
+
+function showImportError(msg, allKeys, lookup){
+  const recognized = Object.keys(lookup);
+  const missing = Object.keys(HEADER_MAP).filter(k=>!recognized.includes(k));
+  const html = `
+    <div style="color:var(--bad);font-weight:600;margin-bottom:6px">${msg}</div>
+    <div class="small"><b>Columns we found in your file:</b><br/>${allKeys.map(k=>`<code>${k}</code>`).join(", ") || "<i>(none)</i>"}</div>
+    <div class="small" style="margin-top:6px"><b>Recognized fields:</b> ${recognized.join(", ") || "<i>(none)</i>"}</div>
+    <div class="small" style="margin-top:6px"><b>Still missing:</b> ${missing.join(", ")}</div>
+    <div class="small" style="margin-top:8px">Rename your column to one of: <code>name</code>, <code>company</code>, or <code>company name</code> — the parser also accepts other common variants. See the panel below or the <code>portco_template_INSTRUCTIONS.md</code> file.</div>
+  `;
+  const el = document.getElementById("importStatus");
+  if (el) el.innerHTML = html; else toast(msg);
+}
+
+function showImportSuccess(n, lookup, allKeys, skipped){
+  const recognized = Object.keys(lookup);
+  const unrecognized = allKeys.filter(k=>!Object.values(lookup).includes(k));
+  const skipMsg = skipped.length? ` Skipped ${skipped.length} blank-name row(s).` : "";
+  const total = state.portcos.length;
+  const html = `
+    <div style="background:rgba(22,163,74,.08);border:1px solid var(--good);border-radius:10px;padding:14px">
+      <div style="color:var(--good);font-weight:700;font-size:14px;margin-bottom:4px">✅ Imported ${n} row(s).${skipMsg}</div>
+      <div style="margin-bottom:10px">Your portfolio now has <b>${total} ${total===1?"portfolio company":"portfolio companies"}</b>.</div>
+      <div class="toolbar" style="margin-bottom:10px">
+        <button class="btn primary" onclick="goTab('t1')">View in Overview →</button>
+        <button class="btn" onclick="goTab('t2')">Leaderboard</button>
+        <button class="btn" onclick="goTab('t3')">Company cards</button>
+      </div>
+      <details><summary class="small" style="cursor:pointer">Mapping detail — ${recognized.length}/${Object.keys(HEADER_MAP).length} canonical columns + ${unrecognized.length} kept as custom fields</summary>
+        <div class="small" style="margin-top:6px"><b>Mapped to canonical fields:</b> ${recognized.join(", ")}</div>
+        ${unrecognized.length?`<div class="small" style="margin-top:6px"><b>Kept as custom fields on each row</b> (open any company in Tab 3 to see / edit them): ${unrecognized.map(k=>`<code>${k}</code>`).join(", ")}</div>`:""}
+      </details>
+    </div>
+  `;
+  const el = document.getElementById("importStatus");
+  if (el) el.innerHTML = html;
+  flashHeader();
+  toast(`✅ ${n} row(s) imported — total now ${total} portcos`);
+}
+
+function flashHeader(){
+  // flash the source pill so the user notices state changed
+  const pill = document.getElementById("sourcePill");
+  if (!pill) return;
+  pill.style.transition = "background-color .25s, color .25s, transform .25s";
+  pill.style.backgroundColor = "var(--good)";
+  pill.style.color = "#ffffff";
+  pill.style.transform = "scale(1.1)";
+  setTimeout(()=>{ pill.style.backgroundColor=""; pill.style.color=""; pill.style.transform=""; }, 1400);
+}
+
+function goTab(id){
+  document.querySelectorAll("#tabsNav button").forEach(b=>b.classList.toggle("active", b.dataset.tab===id));
+  document.querySelectorAll("section.tab").forEach(s=>s.classList.toggle("active", s.id===id));
+  window.scrollTo({top:0, behavior:"smooth"});
+}
+
+function readCSVText(text){
+  // strip BOM if present
+  if (text.charCodeAt(0) === 0xFEFF) text = text.slice(1);
+  const r = Papa.parse(text, {header:true, skipEmptyLines:"greedy", dynamicTyping:false});
+  ingestRows(r.data);
+}
+function readXLSXArrayBuffer(ab){
+  const wb = XLSX.read(ab, {type:"array"});
+  const sheet = wb.Sheets[wb.SheetNames[0]];
+  const rows = XLSX.utils.sheet_to_json(sheet, {raw:true});
+  ingestRows(rows);
+}
+function readJSONText(text){
+  try{
+    const obj = JSON.parse(text);
+    if(obj.portcos && Array.isArray(obj.portcos)){
+      state = {...state, portcos: obj.portcos.map(P), settings: obj.settings || state.settings, source:"import"};
+      saveState(); refreshAll(); toast("Loaded snapshot");
+    } else if(Array.isArray(obj)){ ingestRows(obj); }
+    else toast("Unrecognized JSON");
+  }catch(e){ toast("JSON parse error") }
+}
+
+function handleFile(file){
+  const ext = (file.name.split(".").pop()||"").toLowerCase();
+  const reader = new FileReader();
+  if(ext==="csv"||ext==="tsv"){ reader.onload=e=>readCSVText(e.target.result); reader.readAsText(file); }
+  else if(ext==="xlsx"||ext==="xls"){ reader.onload=e=>readXLSXArrayBuffer(e.target.result); reader.readAsArrayBuffer(file); }
+  else if(ext==="json"){ reader.onload=e=>readJSONText(e.target.result); reader.readAsText(file); }
+  else if(ext==="pdf"){ reader.onload=e=>ingestPDF(e.target.result, file.name); reader.readAsArrayBuffer(file); }
+  else toast("Unsupported file type");
+}
+
+function clearAllPortcos(){
+  if(!confirm("Clear ALL portcos? This empties the dashboard so you can import your own data fresh.")) return;
+  state.portcos = [];
+  state.source = "empty";
+  saveState(); refreshAll();
+  const el = document.getElementById("importStatus");
+  if (el) el.innerHTML = `<div class="small" style="color:var(--muted)">Dashboard cleared. Drop a file above or click "Reset to demo data" to bring the sample portfolio back.</div>`;
+  toast("Cleared. Portfolio companies = 0.");
+}
+
+function deletePortcoFromGrid(id, btnEl){
+  const p = state.portcos.find(x=>x.id===id);
+  if(!p) return;
+  if(!confirm(`Delete "${p.name}" from the portfolio?\n\nThis is local — it removes the row from this browser's data only. You can always re-import or click "Reset to demo data".`)) return;
+  state.portcos = state.portcos.filter(x=>x.id!==id);
+  if (window.__cgSel) window.__cgSel.delete(id);
+  state.source = "manual";
+  saveState();
+  refreshAll();
+  toast(`Removed: ${p.name}. ${state.portcos.length} portfolio companies remaining.`);
+}
+
+/* ---- Multi-select on Companies tab ---- */
+window.__cgSel = window.__cgSel || new Set();
+function cgToggle(id, checkbox){
+  if (checkbox.checked) window.__cgSel.add(id); else window.__cgSel.delete(id);
+  // update card outline + bulk button without re-rendering everything (cheaper, no flicker)
+  const card = document.querySelector(`#companyGrid [data-pid="${id}"]`);
+  if (card) card.style.outline = checkbox.checked ? "2px solid var(--accent)" : "";
+  cgUpdateBulkUI();
+}
+function cgSelectAll(){
+  // select all currently visible cards (respects search/sector filter)
+  document.querySelectorAll('#companyGrid [data-pid]').forEach(card=>{
+    const id = card.dataset.pid;
+    window.__cgSel.add(id);
+    card.style.outline = "2px solid var(--accent)";
+    const cb = card.querySelector('input[type=checkbox]');
+    if (cb) cb.checked = true;
+  });
+  cgUpdateBulkUI();
+}
+function cgClearSel(){
+  window.__cgSel.clear();
+  document.querySelectorAll('#companyGrid [data-pid]').forEach(card=>{
+    card.style.outline = "";
+    const cb = card.querySelector('input[type=checkbox]');
+    if (cb) cb.checked = false;
+  });
+  cgUpdateBulkUI();
+}
+function cgUpdateBulkUI(){
+  const n = window.__cgSel ? window.__cgSel.size : 0;
+  const btn = document.getElementById("cgBulkDeleteBtn");
+  const ct = document.getElementById("cgSelCount");
+  if (ct) ct.textContent = n;
+  if (btn) btn.disabled = n===0;
+}
+function cgBulkDelete(){
+  const ids = [...window.__cgSel];
+  if (!ids.length) return;
+  // collect names for the confirm message (truncate long lists)
+  const names = ids.map(id => state.portcos.find(p=>p.id===id)?.name || id);
+  const preview = names.slice(0,8).join(", ") + (names.length>8 ? `, … +${names.length-8} more` : "");
+  if (!confirm(`Delete ${ids.length} portcos from the portfolio?\n\n${preview}\n\nThis is local. You can always re-import or click "Reset to demo data".`)) return;
+  const setIds = new Set(ids);
+  state.portcos = state.portcos.filter(p => !setIds.has(p.id));
+  window.__cgSel.clear();
+  state.source = "manual";
+  saveState();
+  refreshAll();
+  toast(`Removed ${ids.length} portcos. ${state.portcos.length} remaining.`);
+}
+
+/* ============================================================
+   CUSTOM FIELDS — arbitrary key/value per portco
+   ============================================================ */
+function renderCustomFields(custom){
+  const wrap = document.getElementById("customFieldsWrap");
+  if (!wrap) return;
+  const entries = Object.entries(custom || {});
+  if (!entries.length){
+    wrap.innerHTML = `<div class="small" style="color:var(--muted);padding:8px 0">No custom fields yet. Click "+ Add custom field" or use a suggestion.</div>`;
+    return;
+  }
+  wrap.innerHTML = entries.map(([k,v], i)=>customRowHTML(k, v, i)).join("");
+}
+function customRowHTML(k, v, i){
+  return `<div class="row r-2" data-cf-row="${i}" style="margin-bottom:6px;align-items:end">
+    <div class="field" style="margin-bottom:0"><label>Field name</label><input class="cf-key" value="${String(k||"").replace(/"/g,"&quot;")}" placeholder="e.g. Top customer"/></div>
+    <div class="field" style="margin-bottom:0;display:flex;flex-direction:row;gap:6px;align-items:end">
+      <div style="flex:1"><label class="small" style="color:var(--muted);font-size:11px">Value</label><input class="cf-val" value="${String(v||"").replace(/"/g,"&quot;")}" placeholder="e.g. ACME Corp (12% of rev)" style="width:100%"/></div>
+      <button class="btn ghost" onclick="this.closest('[data-cf-row]').remove()" title="Remove this field" style="padding:6px 10px">×</button>
+    </div>
+  </div>`;
+}
+function addCustomFieldRow(){
+  const wrap = document.getElementById("customFieldsWrap");
+  if (!wrap) return;
+  // if the placeholder text is showing, clear it first
+  if (wrap.querySelector(".small")) wrap.innerHTML = "";
+  const i = wrap.querySelectorAll("[data-cf-row]").length;
+  wrap.insertAdjacentHTML("beforeend", customRowHTML("", "", i));
+  // focus the new key field
+  const last = wrap.lastElementChild?.querySelector(".cf-key");
+  if (last) last.focus();
+}
+function quickAddCustom(name, value){
+  const wrap = document.getElementById("customFieldsWrap");
+  if (!wrap) return;
+  if (wrap.querySelector(".small") && !wrap.querySelector("[data-cf-row]")) wrap.innerHTML = "";
+  // if already present, just focus its value field instead of adding a duplicate
+  const existing = [...wrap.querySelectorAll(".cf-key")].find(inp => inp.value.trim().toLowerCase() === name.toLowerCase());
+  if (existing){
+    existing.closest("[data-cf-row]").querySelector(".cf-val").focus();
+    return;
+  }
+  const i = wrap.querySelectorAll("[data-cf-row]").length;
+  wrap.insertAdjacentHTML("beforeend", customRowHTML(name, value, i));
+  const last = wrap.lastElementChild?.querySelector(".cf-val");
+  if (last) last.focus();
+}
+function collectCustomFields(){
+  const wrap = document.getElementById("customFieldsWrap");
+  const out = {};
+  if (!wrap) return out;
+  wrap.querySelectorAll("[data-cf-row]").forEach(row=>{
+    const k = row.querySelector(".cf-key")?.value?.trim();
+    const v = row.querySelector(".cf-val")?.value?.trim();
+    if (k) out[k] = v ?? "";
+  });
+  return out;
+}
+
+/* ============================================================
+   KEY NOTES — per-portco insights, auto-generated from data
+   Optionally enriched with Claude if user has stored an API key
+   ============================================================ */
+function autoKeyNotes(p){
+  const notes = [];
+  const fmt$ = v => "$"+(+v).toLocaleString(undefined,{maximumFractionDigits:1})+"M";
+  const hold = holdYears(p);
+  const vintageDate = new Date(p.vintage);
+  const vintMonth = vintageDate.toLocaleString("en-US",{month:"long",year:"numeric"});
+  notes.push(`Acquired ${vintMonth}. Hold period ${hold.toFixed(1)} years.`);
+
+  // Revenue
+  if (p.entryRev > 0 && p.curRev > 0){
+    const revGrowth = (p.curRev/p.entryRev - 1)*100;
+    const revCAGR = (Math.pow(p.curRev/p.entryRev, 1/hold)-1)*100;
+    notes.push(`Revenue grew from ${fmt$(p.entryRev)} to ${fmt$(p.curRev)} — ${revGrowth>=0?"+":""}${revGrowth.toFixed(0)}% total, ${revCAGR>=0?"+":""}${revCAGR.toFixed(1)}% annualized.`);
+  }
+
+  // EBITDA and margin
+  if (p.entryEbitda > 0 && p.curEbitda){
+    const eGrowth = (p.curEbitda/p.entryEbitda - 1)*100;
+    const entryMargin = (p.entryEbitda/p.entryRev)*100;
+    const curMargin = (p.curEbitda/p.curRev)*100;
+    const marginBps = (curMargin - entryMargin)*100;
+    notes.push(`EBITDA ${eGrowth>=0?"grew":"declined"} from ${fmt$(p.entryEbitda)} to ${fmt$(p.curEbitda)} (${eGrowth>=0?"+":""}${eGrowth.toFixed(0)}%). Margin ${marginBps>=0?"expanded":"compressed"} ${Math.abs(marginBps).toFixed(0)} bps to ${curMargin.toFixed(1)}%.`);
+  }
+
+  // Multiple shift
+  const multDelta = p.curMult - p.entryMult;
+  if (Math.abs(multDelta) > 0.1){
+    notes.push(`Valuation multiple ${multDelta>=0?"expanded":"compressed"} from ${p.entryMult.toFixed(1)}× to ${p.curMult.toFixed(1)}× (${multDelta>=0?"+":""}${multDelta.toFixed(1)}× shift).`);
+  }
+
+  // Largest value driver
+  const eg = ebitdaGrowthBridge(p);
+  const me = multipleBridge(p);
+  const dp = debtPaydown(p);
+  const tot = eg + me + dp;
+  if (Math.abs(tot) > 0.5){
+    const drivers = [
+      {name:"earnings growth", v:eg},
+      {name:"valuation change", v:me},
+      {name:"debt reduction", v:dp}
+    ].sort((a,b)=>Math.abs(b.v)-Math.abs(a.v));
+    const top = drivers[0];
+    const pct = Math.abs(top.v/tot*100);
+    notes.push(`Largest value driver: ${top.name} (${fmt$(Math.abs(top.v))}, ${pct.toFixed(0)}% of total ${tot>=0?"gain":"loss"}).`);
+  }
+
+  // Vs sector
+  const mb = marginalBenefit(p);
+  if (Math.abs(mb) > 0.5){
+    notes.push(`${mb>=0 ? "Outperforming" : "Trailing"} the ${p.sector} sector baseline by ${fmt$(Math.abs(mb))} of EBITDA.`);
+  }
+
+  // MOIC headline
+  const m = moic(p);
+  const irr = (Math.pow(m, 1/hold)-1)*100;
+  notes.push(`Today: ${fmt$(p.curValue)} fair value, ${m.toFixed(2)}× MOIC, ${irr.toFixed(1)}% IRR.`);
+
+  // Status flag
+  if (p.status === "Distressed") notes.push("⚠ Flagged Distressed — workout/restructure in scope.");
+  else if (p.status === "Underperforming") notes.push("⚠ Underperforming the original plan.");
+
+  return notes;
+}
+
+function renderKeyNotes(p){
+  const panel = document.getElementById("mc_notes_panel");
+  if (!panel) return;
+  const bullets = autoKeyNotes(p);
+  const claudeEnabled = !!(state.settings.anthropicKey && state.settings.anthropicKey.startsWith("sk-"));
+  const aiNotes = p.aiNotes;
+
+  panel.innerHTML = `
+    <ul style="margin:0 0 0 18px;padding:0;line-height:1.7;font-size:13px;color:var(--ink)">
+      ${bullets.map(b=>`<li>${b}</li>`).join("")}
+    </ul>
+    ${aiNotes ? `
+      <div style="margin-top:14px;padding-top:14px;border-top:1px solid var(--line)">
+        <div style="font-weight:600;font-size:11px;color:var(--muted);letter-spacing:.6px;text-transform:uppercase;margin-bottom:8px">Claude analysis</div>
+        <div id="mc_ai_body" style="font-size:13px;line-height:1.6;color:var(--ink);white-space:pre-wrap">${aiNotes.replace(/</g,"&lt;")}</div>
+      </div>` : ""}
+    <div class="toolbar" style="margin-top:14px;border-top:1px solid var(--line);padding-top:12px">
+      <button class="btn" id="mc_ai_btn" ${claudeEnabled?"":"disabled title='Add an Anthropic API key in Settings to enable'"} onclick="generateClaudeNotes('${p.id}')">
+        ${aiNotes ? "Regenerate Claude analysis" : "Enrich with Claude"}
+      </button>
+      ${!claudeEnabled ? `<span class="small">Set your Anthropic API key in <a href="#" onclick="goTab('t8');dlg.close();return false">Settings → 8.2</a> to enable.</span>` : ""}
+    </div>
+  `;
+}
+
+async function generateClaudeNotes(portcoId){
+  const p = state.portcos.find(x=>x.id===portcoId);
+  if (!p) return;
+  const key = state.settings.anthropicKey;
+  if (!key) { toast("Add your Anthropic API key in Settings → 8.2"); return; }
+
+  const btn = document.getElementById("mc_ai_btn");
+  if (btn){ btn.disabled = true; btn.textContent = "Asking Claude…"; }
+
+  // Build a compact context: numerical summary + custom fields
+  const ctx = {
+    name: p.name, sector: p.sector, status: p.status, vintage: p.vintage,
+    holdYears: +holdYears(p).toFixed(2),
+    invested: p.invested, currentValue: p.curValue,
+    moic: +moic(p).toFixed(2),
+    irrApprox: +(irrApprox(p)*100).toFixed(1),
+    entryRev: p.entryRev, curRev: p.curRev,
+    entryEbitda: p.entryEbitda, curEbitda: p.curEbitda,
+    entryMult: p.entryMult, curMult: p.curMult,
+    entryDebt: p.entryDebt, curDebt: p.curDebt,
+    entryMargin: +((p.entryEbitda/p.entryRev)*100).toFixed(1),
+    currentMargin: +((p.curEbitda/p.curRev)*100).toFixed(1),
+    headcountEntry: p.hcEntry, headcountCurrent: p.hcCur,
+    nrr: p.nrr, cacPaybackMonths: p.cacPayback,
+    valueBridge: {
+      ebitdaGrowth: +ebitdaGrowthBridge(p).toFixed(1),
+      multipleExpansion: +multipleBridge(p).toFixed(1),
+      debtPaydown: +debtPaydown(p).toFixed(1)
+    },
+    customFields: p.custom || {},
+    notes: p.notes || ""
+  };
+  const prompt = `You are a senior PE investment analyst. Read this portfolio company's snapshot and write 4-6 short, executive-style key observations. Be specific with numbers. Call out the most important driver of value, any concerning trends, and what to ask the management team next. No fluff. No formula explanations. Plain English. Use short bullets.
+
+Portfolio company data:
+${JSON.stringify(ctx, null, 2)}`;
+
+  try {
+    const r = await fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        "x-api-key": key,
+        "anthropic-version": "2023-06-01",
+        "anthropic-dangerous-direct-browser-access": "true"
+      },
+      body: JSON.stringify({
+        model: "claude-sonnet-4-6",
+        max_tokens: 800,
+        messages: [{role: "user", content: prompt}]
+      })
+    });
+    if (!r.ok){
+      const err = await r.text();
+      toast("Claude API error — check console");
+      console.error("Claude error:", err);
+      if (btn){ btn.disabled = false; btn.textContent = "Enrich with Claude"; }
+      return;
+    }
+    const data = await r.json();
+    const text = (data.content?.[0]?.text || "").trim();
+    // Persist on portco
+    const i = state.portcos.findIndex(x=>x.id===portcoId);
+    if (i>=0){
+      state.portcos[i].aiNotes = text;
+      saveState();
+    }
+    renderKeyNotes(state.portcos[i]);
+    toast("Claude analysis added");
+  } catch (e){
+    toast("Network error: " + e.message);
+    if (btn){ btn.disabled = false; btn.textContent = "Enrich with Claude"; }
+  }
+}
+
+/* ============================================================
+   PDF INGEST — client-side via PDF.js
+   Extracts text, regex-scans for revenue/EBITDA/debt/headcount,
+   and populates the manual-entry form for human review.
+   This is "best-effort" — finance PDFs vary wildly in layout.
+   ============================================================ */
+async function ingestPDF(arrayBuffer, filename){
+  const status = document.getElementById("importStatus");
+  if (typeof pdfjsLib === "undefined"){
+    if (status) status.innerHTML = `<div style="color:var(--bad)">PDF.js library failed to load. Check your internet connection and reload.</div>`;
+    return;
+  }
+  if (status) status.innerHTML = `<div class="small">Reading <b>${filename}</b>… (PDF text extraction takes a few seconds for large docs)</div>`;
+
+  try {
+    const pdf = await pdfjsLib.getDocument({data: arrayBuffer}).promise;
+    let text = "";
+    for (let i = 1; i <= pdf.numPages; i++){
+      const page = await pdf.getPage(i);
+      const content = await page.getTextContent();
+      // Reconstruct lines by Y coordinate
+      const items = content.items.map(it => ({str: it.str, y: it.transform[5]}));
+      // group items by approx Y
+      items.sort((a,b)=> b.y - a.y);
+      let lastY = null, line = [];
+      const lines = [];
+      items.forEach(it=>{
+        if (lastY===null || Math.abs(it.y-lastY) < 2) { line.push(it.str); lastY = it.y; }
+        else { lines.push(line.join(" ")); line=[it.str]; lastY = it.y; }
+      });
+      if (line.length) lines.push(line.join(" "));
+      text += "\n" + lines.join("\n");
+    }
+
+    const extracted = parsePDFText(text, filename);
+    showPDFExtraction(extracted, text);
+  } catch (err) {
+    if (status) status.innerHTML = `<div style="color:var(--bad)">PDF parse error: ${err.message}</div>`;
+  }
+}
+
+function parsePDFText(text, filename){
+  // Normalize: collapse multiple spaces
+  const T = text.replace(/[ \t]+/g, " ");
+  const found = {};
+
+  // Try to extract company name from filename or first heading line
+  const fnameGuess = filename.replace(/\.pdf$/i, "").replace(/[_\-]+/g, " ").replace(/\b(financials?|board|deck|q[1-4]|fy?\d{2,4}|monthly|annual|report)\b/gi, "").trim();
+  const firstLine = (text.split("\n").map(l=>l.trim()).find(l=>l.length>3 && l.length<70 && /[A-Za-z]/.test(l))) || "";
+  found.name = fnameGuess.length>2 ? fnameGuess.replace(/\s+/g," ") : firstLine;
+
+  const num = (s)=>{
+    if (!s) return null;
+    // accept $1,234.5 / 1.2M / 1,234 / (1,234) for negative
+    const neg = /^\(.*\)$/.test(s);
+    const cleaned = s.replace(/[^\d.\-MmKkBb]/g,"");
+    let v = parseFloat(cleaned);
+    if (isNaN(v)) return null;
+    if (/m/i.test(s)) v = v;          // already millions
+    else if (/k/i.test(s)) v = v/1000; // K → M
+    else if (/b/i.test(s)) v = v*1000; // B → M
+    else if (v > 1e6) v = v/1e6;       // raw $: assume actual dollars, convert to M
+    else if (v > 1e3 && v < 1e6) v = v/1e3; // K range → M? leave as-is (likely already $M)
+    if (neg) v = -v;
+    return v;
+  };
+
+  // Patterns to scan. The regex looks for a label, optional currency word, then a number with optional units.
+  const NUM_RE = /\$?\s*\(?\s*[\d,]+\.?\d*\s*\)?\s*(?:M|MM|million|B|billion|K|thousand)?/i;
+  const grab = (labels)=>{
+    for (const lab of labels){
+      // label optionally followed by colon, then a number within ~80 chars
+      const re = new RegExp("(?:" + lab + ")\\s*[:\\-]?\\s*(" + NUM_RE.source + ")", "i");
+      const m = T.match(re);
+      if (m) return num(m[1]);
+    }
+    return null;
+  };
+
+  found.curRev      = grab(["Revenue","Total Revenue","Net Revenue","Net Sales","Total Sales","Sales"]);
+  found.curEbitda   = grab(["Adjusted EBITDA","Adj\\. EBITDA","EBITDA"]);
+  found.curDebt     = grab(["Net Debt","Total Debt","Debt Outstanding","Long[- ]term Debt"]);
+  found.hcCur       = grab(["Headcount","Employees","FTEs","Total Employees","Full[- ]time Employees"]);
+  found.curGM       = (()=>{ const g = grab(["Gross Margin","Gross Profit Margin"]); if (g==null) return null; return g>1? g/100 : g; })();
+  found.nrr         = grab(["Net Revenue Retention","NRR","Net Retention"]);
+  found.cacPayback  = grab(["CAC Payback","Payback Period"]);
+
+  // Best-effort entry vs current pattern: many decks include "Y0 / At Acquisition / Entry"
+  found.entryRev    = grab(["Revenue at Entry","Y0 Revenue","Entry Revenue","Acquisition Revenue"]);
+  found.entryEbitda = grab(["EBITDA at Entry","Y0 EBITDA","Entry EBITDA","Acquisition EBITDA"]);
+  found.entryDebt   = grab(["Debt at Entry","Entry Debt","Acquisition Debt"]);
+
+  // remove nulls
+  const out = {};
+  for (const [k,v] of Object.entries(found)) if (v!=null && v!=="" && !(typeof v==="number"&&isNaN(v))) out[k]=v;
+  return out;
+}
+
+function showPDFExtraction(extracted, rawText){
+  const fields = Object.entries(extracted);
+  const status = document.getElementById("importStatus");
+  if (!status) return;
+  if (!fields.length){
+    status.innerHTML = `
+      <div style="color:var(--warn);font-weight:600">PDF parsed but no recognizable financial fields found.</div>
+      <div class="small" style="margin-top:6px">The document may use unusual labels or be image-only. Try the manual form below.</div>
+      <details style="margin-top:8px"><summary class="small">Show first 1,000 chars of extracted text</summary>
+        <pre style="background:#ffffff;border:1px solid var(--line);padding:10px;border-radius:8px;color:#cfd6ec;font-size:11px;max-height:240px;overflow:auto;white-space:pre-wrap">${rawText.slice(0,1000).replace(/</g,"&lt;")}</pre>
+      </details>`;
+    return;
+  }
+  // Render an editable table the user confirms
+  const rows = fields.map(([k,v])=>`
+    <tr>
+      <td style="padding:4px 8px;color:var(--muted)">${k}</td>
+      <td><input id="pdf_${k}" value="${v}" style="background:#ffffff;border:1px solid var(--line);color:var(--ink);padding:4px 8px;border-radius:6px;width:140px;font-size:12px"/></td>
+    </tr>`).join("");
+  status.innerHTML = `
+    <div style="color:var(--good);font-weight:600;margin-bottom:6px">PDF parsed. Review fields below, edit, then save.</div>
+    <div class="row r-2" style="align-items:start">
+      <div>
+        <table style="width:auto">${rows}</table>
+        <div class="toolbar" style="margin-top:10px">
+          <input id="pdf_targetName" placeholder="Override company name (optional)" style="background:#ffffff;border:1px solid var(--line);color:var(--ink);padding:6px 10px;border-radius:8px;font-size:12px;min-width:240px"/>
+          <button class="btn primary" onclick="commitPDFExtraction()">Save to portfolio</button>
+        </div>
+      </div>
+      <details><summary class="small">Show first 1,500 chars of extracted text (debug)</summary>
+        <pre style="background:#ffffff;border:1px solid var(--line);padding:10px;border-radius:8px;color:#cfd6ec;font-size:11px;max-height:280px;overflow:auto;white-space:pre-wrap">${rawText.slice(0,1500).replace(/</g,"&lt;")}</pre>
+      </details>
+    </div>
+  `;
+  // remember the keys for commit
+  window.__pdfKeys = fields.map(([k])=>k);
+}
+
+function commitPDFExtraction(){
+  const keys = window.__pdfKeys || [];
+  const get = k => document.getElementById("pdf_"+k)?.value;
+  const nameOverride = document.getElementById("pdf_targetName")?.value?.trim();
+  const data = {};
+  keys.forEach(k => { const v = get(k); if (v != null && v !== "") data[k] = isNaN(+v) ? v : +v; });
+  if (nameOverride) data.name = nameOverride;
+  if (!data.name){ toast("Need a company name before saving"); return; }
+  // Match by name; otherwise create new
+  let i = state.portcos.findIndex(p => p.name.toLowerCase() === String(data.name).toLowerCase());
+  if (i >= 0){
+    Object.assign(state.portcos[i], data);
+    state.portcos[i] = P(state.portcos[i]);
+    toast(`Updated: ${data.name}`);
+  } else {
+    const np = P({
+      id: "pdf_"+Date.now(),
+      sector: data.sector || SECTORS[0],
+      status: "On plan",
+      vintage: new Date().toISOString().slice(0,10),
+      invested: data.invested || 0,
+      entryRev: data.entryRev || data.curRev || 1,
+      entryEbitda: data.entryEbitda || data.curEbitda || 0.1,
+      entryGM: data.entryGM || data.curGM || 0.5,
+      entryDebt: data.entryDebt || data.curDebt || 0,
+      entryMult: data.entryMult || 8,
+      curRev: data.curRev || 1,
+      curEbitda: data.curEbitda || 0.1,
+      curGM: data.curGM || 0.5,
+      curDebt: data.curDebt || 0,
+      curMult: data.curMult || 8,
+      hcEntry: data.hcEntry || 0,
+      hcCur: data.hcCur || 0,
+      nrr: data.nrr ?? null,
+      cacPayback: data.cacPayback ?? null,
+      notes: "Imported from PDF (review)",
+      ...data
+    });
+    np.revHist = [np.entryRev*0.85, np.entryRev, (np.entryRev+np.curRev)/2, np.curRev];
+    np.ebitdaHist = [np.entryEbitda*0.8, np.entryEbitda, (np.entryEbitda+np.curEbitda)/2, np.curEbitda];
+    state.portcos.push(np);
+    toast(`Added new portco: ${data.name}`);
+  }
+  state.source = "pdf";
+  saveState(); refreshAll();
+  flashHeader();
+  const total = state.portcos.length;
+  const el = document.getElementById("importStatus");
+  if (el) el.innerHTML = `
+    <div style="background:rgba(22,163,74,.08);border:1px solid var(--good);border-radius:10px;padding:14px">
+      <div style="color:var(--good);font-weight:700;font-size:14px;margin-bottom:4px">✅ Saved from PDF</div>
+      <div style="margin-bottom:10px">Your portfolio now has <b>${total} ${total===1?"portfolio company":"portfolio companies"}</b>.</div>
+      <div class="toolbar"><button class="btn primary" onclick="goTab('t1')">View in Overview →</button>
+        <button class="btn" onclick="goTab('t3')">Open the new card</button></div>
+    </div>`;
+}
+
+function addPortcoFromForm(){
+  const g = (id, num)=>{ const v=document.getElementById(id).value; return num?(v===""?null:+v):v; };
+  const np = P({
+    id:"u_"+Date.now(),
+    name:g("f_name"), sector:g("f_sector"), vintage:g("f_vintage"), status:g("f_status"),
+    invested:g("f_invested",1)||0,
+    entryRev:g("f_entryRev",1)||1, entryEbitda:g("f_entryEbitda",1)||0.1, entryGM:0.5,
+    entryDebt:g("f_entryDebt",1)||0, entryMult:8,
+    curRev:g("f_curRev",1)||1, curEbitda:g("f_curEbitda",1)||0.1, curGM:0.5,
+    curDebt:g("f_curDebt",1)||0, curMult:8, curEV:g("f_curEV",1)||null,
+    hcEntry:g("f_hcE",1)||0, hcCur:g("f_hcC",1)||0,
+    nrr:g("f_nrr",1), cacPayback:g("f_cac",1),
+    notes:g("f_notes")||"",
+    revHist:[1,1,1,g("f_curRev",1)||1], ebitdaHist:[0.1,0.1,0.1,g("f_curEbitda",1)||0.1]
+  });
+  if(!np.name) return toast("Need a name");
+  state.portcos.push(np); state.source="manual"; saveState(); refreshAll(); toast("Added "+np.name);
+  ["f_name","f_invested","f_entryRev","f_entryEbitda","f_entryDebt","f_curRev","f_curEbitda","f_curDebt","f_curEV","f_hcE","f_hcC","f_nrr","f_cac","f_notes"].forEach(id=>document.getElementById(id).value="");
+}
+
+function trySyncSharePoint(){
+  toast("SharePoint not connected. Enable Microsoft 365 in Cowork/Claude from a North Castle account to activate sync.");
+}
+
+/* ============================================================
+   SETTINGS
+   ============================================================ */
+function renderSettings(){
+  document.getElementById("set_firm").value = state.settings.firm;
+  document.getElementById("set_fund").value = state.settings.fund;
+  document.getElementById("set_asof").value = state.settings.asof;
+  const apiKeyField = document.getElementById("set_anthropicKey");
+  if (apiKeyField) apiKeyField.value = state.settings.anthropicKey || "";
+  const wrap = document.getElementById("sectorCagrFields");
+  wrap.innerHTML = SECTORS.map(s=>`
+    <div class="field"><label>${s} expected growth %</label><input data-sec="${s}" type="number" step="0.1" value="${((state.settings.sectorCagr[s]||0)*100).toFixed(1)}"/></div>
+  `).join("");
+}
+function saveSettings(){
+  state.settings.firm = document.getElementById("set_firm").value || state.settings.firm;
+  state.settings.fund = document.getElementById("set_fund").value || state.settings.fund;
+  state.settings.asof = document.getElementById("set_asof").value || state.settings.asof;
+  const apiKeyField = document.getElementById("set_anthropicKey");
+  if (apiKeyField) state.settings.anthropicKey = apiKeyField.value.trim();
+  document.querySelectorAll("#sectorCagrFields input").forEach(i=>{
+    state.settings.sectorCagr[i.dataset.sec] = (+i.value||0)/100;
+  });
+  saveState(); applyHeader(); refreshAll(); toast("Settings saved");
+}
+
+/* ============================================================
+   POPULATE SECTOR DROPDOWN(s)
+   ============================================================ */
+function applyHeader(){
+  document.getElementById("firmNameLabel").textContent = state.settings.firm;
+  const n = state.portcos.length;
+  const cw = n===0 ? "no portfolio companies" : (n===1 ? "1 portfolio company" : `${n} portfolio companies`);
+  const srcLabel = ({demo:"Demo data", manual:"Live (manual entries)", import:"Live (imported)", pdf:"Live (PDF ingest)", server:"Live (server)", empty:"Empty — drop a file in Tab 7"})[state.source] || "Live";
+  document.getElementById("firmSub").textContent = `${state.settings.fund} • ${cw} • ${srcLabel} • USD $M`;
+  document.getElementById("asOfPill").textContent = "As of " + state.settings.asof;
+  document.getElementById("sourcePill").textContent = "Source: " + state.source;
+  document.title = `${state.settings.firm} — Portfolio Monitor (${n})`;
+}
+
+/* ============================================================
+   ORCHESTRATION
+   ============================================================ */
+function refreshAll(){
+  applyHeader();
+  // populate form sector dropdowns
+  const fSec = document.getElementById("f_sector");
+  if(fSec.options.length===0) SECTORS.forEach(s=>fSec.add(new Option(s,s)));
+  renderKPIs();
+  renderOverviewCharts();
+  renderLeaderboard();
+  renderCompanyGrid();
+  renderValueCreation();
+  renderOpsKPIs();
+  renderSectors();
+  renderSettings();
+}
+
+/* TABS */
+document.getElementById("tabsNav").addEventListener("click", e=>{
+  const b = e.target.closest("button"); if(!b) return;
+  document.querySelectorAll("#tabsNav button").forEach(x=>x.classList.toggle("active", x===b));
+  const id = b.dataset.tab;
+  document.querySelectorAll("section.tab").forEach(s=>s.classList.toggle("active", s.id===id));
+});
+
+/* drag/drop */
+const dz = document.getElementById("dropZone");
+dz.addEventListener("dragover", e=>{ e.preventDefault(); dz.classList.add("over"); });
+dz.addEventListener("dragleave", ()=>dz.classList.remove("over"));
+dz.addEventListener("drop", e=>{
+  e.preventDefault(); dz.classList.remove("over");
+  const f = e.dataTransfer.files[0]; if(f) handleFile(f);
+});
+document.getElementById("fileInput").addEventListener("change", e=>{ const f=e.target.files[0]; if(f) handleFile(f); });
+
+/* toast */
+function toast(msg){
+  const t = document.getElementById("toast");
+  t.textContent = msg; t.classList.add("show");
+  clearTimeout(window._tt); window._tt = setTimeout(()=>t.classList.remove("show"), 2400);
+}
+
+/* ============================================================
+   BOOT (with visible error reporting)
+   ============================================================ */
+function showBootError(msg){
+  const ov = document.getElementById("bootOverlay");
+  const er = document.getElementById("bootErr");
+  document.getElementById("bootSpin").textContent = "Dashboard failed to load";
+  document.getElementById("bootMsg").innerHTML =
+    "Check the panel below. Most common fix: <b>open this file in Chrome or Safari directly</b> (double-click it in Finder) rather than a preview pane. If you're offline, the dashboard needs internet to load its chart library.";
+  er.style.display = "block";
+  er.textContent = msg;
+  ov.style.display = "flex";
+}
+window.addEventListener("error", e=>{
+  showBootError("JS error: " + (e.error?.stack || e.message));
+});
+try {
+  if (window.__cdnFail) {
+    showBootError("Blocked CDN libraries: " + window.__cdnFail +
+      "\n\nThe dashboard relies on Chart.js, PapaParse, and SheetJS loaded from cdn.jsdelivr.net. " +
+      "Your network or browser blocked one of them. Try a different network, or use Chrome.");
+  } else if (typeof Chart === "undefined") {
+    showBootError("Chart.js did not load. Re-open this file in Chrome/Safari from Finder. " +
+      "Some preview panes block third-party scripts.");
+  } else {
+    saveState();
+    refreshAll();
+    // hide the overlay on success
+    const ov = document.getElementById("bootOverlay");
+    if (ov) ov.style.display = "none";
+    // First-run: if storage was empty AND state is blank, show the welcome modal
+    if (state.source === "empty" && state.portcos.length === 0) {
+      document.getElementById("welcomeModal")?.classList.add("open");
+    }
+  }
+} catch (err) {
+  showBootError("Boot error: " + (err.stack || err.message));
+}
+
+</script>
+</body>
+</html>

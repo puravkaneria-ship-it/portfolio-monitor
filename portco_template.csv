@@ -1,0 +1,3 @@
+id,name,sector,status,vintage,invested,entryRev,entryEbitda,entryGM,entryDebt,entryMult,curRev,curEbitda,curGM,curDebt,curMult,hcEntry,hcCur,nrr,cacPayback,notes
+example1,Meridian Dental Group,Healthcare Services,Outperforming,2022-03-15,85,120,18,0.70,77,9,165,30.0,0.70,52,11.0,1100,1450,,,DSO roll-up; 14 bolt-ons completed during hold
+example2,Polaris HRTech,B2B Software,Outperforming,2021-11-18,96,18,3,0.74,0,32,42,9,0.78,0,28,160,280,118,18,NRR 118%; expanding Canada/UK
