@@ -53,6 +53,8 @@
 <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js" onerror="window.__cdnFail=(window.__cdnFail||'')+',papaparse'"></script>
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js" onerror="window.__cdnFail=(window.__cdnFail||'')+',xlsx'"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js" onerror="window.__cdnFail=(window.__cdnFail||'')+',pdfjs'"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
 <script>
   // configure PDF.js worker once it's loaded
   if (window['pdfjsLib']) {
@@ -203,6 +205,7 @@
     <span class="pill" id="asOfPill">As of —</span>
     <span class="pill" id="storagePill">Local save: —</span>
     <span class="pill" id="sourcePill">Source: demo</span>
+    <span class="pill" id="livePill" onclick="toggleLiveMode()" style="cursor:pointer;user-select:none;" title="Toggle real-time sync with team">○ Local</span>
     <button class="btn" onclick="dlg.help()">Help</button>
   </div>
 </header>
@@ -766,6 +769,87 @@ function saveState(){
   localStorage.setItem(LS_KEY, JSON.stringify(state));
   document.getElementById("storagePill").textContent = "Local save: " + new Date(state.lastSaved).toLocaleTimeString();
   document.getElementById("sourcePill").textContent = "Source: " + state.source;
+  pushToFirebase();
+}
+
+/* ============================================================
+   FIREBASE LIVE SYNC
+   ============================================================ */
+const FB_CONFIG = {
+  apiKey: "AIzaSyCN5BSgF5YXS38FrAIkNKBUlRJVbJPZG2E",
+  authDomain: "north-castle-monitor.firebaseapp.com",
+  databaseURL: "https://north-castle-monitor-default-rtdb.firebaseio.com",
+  projectId: "north-castle-monitor",
+  storageBucket: "north-castle-monitor.firebasestorage.app",
+  messagingSenderId: "903886664217",
+  appId: "1:903886664217:web:a5b8fc678cb2fe63d43088"
+};
+const FB_PATH = "ncp_v1";
+const FB_LIVEMODE_KEY = "ncp_livemode";
+let _fbApp = null, _fbDb = null, _fbListener = null, _liveMode = false, _ignoreRemote = false;
+
+function _fbInit(){
+  if (_fbApp) return true;
+  try { _fbApp = firebase.initializeApp(FB_CONFIG); _fbDb = firebase.database(); return true; }
+  catch(e){ toast("Firebase init error: " + e.message); return false; }
+}
+
+function pushToFirebase(){
+  if (!_liveMode || !_fbDb) return;
+  _ignoreRemote = true;
+  _fbDb.ref(FB_PATH).set(state)
+    .then(() => { setTimeout(() => { _ignoreRemote = false; }, 1000); })
+    .catch(e => { _ignoreRemote = false; toast("Sync error: " + e.message); });
+}
+
+function _fbSubscribe(){
+  _fbListener = _fbDb.ref(FB_PATH).on("value", snap => {
+    if (_ignoreRemote) return;
+    const data = snap.val();
+    if (!data) return;
+    state = data;
+    if (!state.portcos) state.portcos = [];
+    if (!state.settings) state.settings = {...DEFAULT_SETTINGS};
+    localStorage.setItem(LS_KEY, JSON.stringify(state));
+    refreshAll();
+  });
+}
+
+function _fbUnsubscribe(){
+  if (_fbDb && _fbListener != null) { _fbDb.ref(FB_PATH).off("value", _fbListener); _fbListener = null; }
+}
+
+function _updateLivePill(){
+  const p = document.getElementById("livePill");
+  if (!p) return;
+  if (_liveMode){ p.textContent = "● Live"; p.style.color = "#166534"; p.style.borderColor = "#bbf7d0"; }
+  else { p.textContent = "○ Local"; p.style.color = ""; p.style.borderColor = ""; }
+}
+
+function toggleLiveMode(){
+  if (_liveMode) {
+    _liveMode = false;
+    localStorage.removeItem(FB_LIVEMODE_KEY);
+    _fbUnsubscribe();
+    _updateLivePill();
+    toast("Local mode — changes stay on your device only");
+  } else {
+    if (!_fbInit()) return;
+    _liveMode = true;
+    localStorage.setItem(FB_LIVEMODE_KEY, "1");
+    _updateLivePill();
+    _fbSubscribe();
+    pushToFirebase();
+    toast("Live mode ON — team will see your changes in real time");
+  }
+}
+
+function _initLiveMode(){
+  if (localStorage.getItem(FB_LIVEMODE_KEY) !== "1") return;
+  if (!_fbInit()) return;
+  _liveMode = true;
+  _updateLivePill();
+  _fbSubscribe();
 }
 
 let state = loadState();
@@ -2424,6 +2508,7 @@ try {
   } else {
     saveState();
     refreshAll();
+    _initLiveMode();
     // hide the overlay on success
     const ov = document.getElementById("bootOverlay");
     if (ov) ov.style.display = "none";
