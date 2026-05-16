@@ -7,50 +7,219 @@
 <meta http-equiv="Pragma" content="no-cache" />
 <meta http-equiv="Expires" content="0" />
 <title>Portfolio Monitor — North Castle Partners</title>
+<link href="https://fonts.googleapis.com/css2?family=Great+Vibes&family=Cormorant+Garamond:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet"/>
+<style>
+/* ══ AUTH EXPERIENCE ══ */
+@keyframes orb-float{0%,100%{transform:translate(0,0) scale(1)}50%{transform:translate(-20px,15px) scale(1.05)}}
+@keyframes orb-float-2{0%,100%{transform:translate(0,0) scale(1)}50%{transform:translate(15px,-20px) scale(0.97)}}
+@keyframes fade-up{from{opacity:0;transform:translateY(24px)}to{opacity:1;transform:translateY(0)}}
+@keyframes fade-in{from{opacity:0}to{opacity:1}}
+@keyframes greeting-in{from{opacity:0;transform:translateY(32px) scale(.97)}to{opacity:1;transform:translateY(0) scale(1)}}
+@keyframes shimmer{0%{background-position:0% 50%}50%{background-position:100% 50%}100%{background-position:0% 50%}}
+
+#authOverlay{
+  position:fixed;inset:0;z-index:99999;
+  background:#06091a;
+  display:flex;align-items:center;justify-content:center;
+  font-family:'Inter',-apple-system,sans-serif;
+  overflow:hidden;
+}
+.auth-orb{position:absolute;border-radius:50%;filter:blur(80px);opacity:.55;animation:orb-float 8s ease-in-out infinite}
+.auth-orb.o1{width:500px;height:500px;background:radial-gradient(circle,#2d1b69,#1a0a3e);top:-100px;left:-80px;animation-duration:9s}
+.auth-orb.o2{width:400px;height:400px;background:radial-gradient(circle,#0c2a6e,#051640);bottom:-80px;right:-60px;animation:orb-float-2 11s ease-in-out infinite}
+.auth-orb.o3{width:300px;height:300px;background:radial-gradient(circle,#1a3a8f,#0d1f50);top:40%;left:60%;animation-duration:13s}
+.auth-noise{position:absolute;inset:0;opacity:.03;background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")}
+
+/* Login card */
+#authLogin{
+  position:relative;z-index:2;
+  width:420px;padding:48px 44px 44px;
+  background:rgba(255,255,255,.04);
+  border:1px solid rgba(255,255,255,.09);
+  border-radius:20px;
+  backdrop-filter:blur(24px);
+  -webkit-backdrop-filter:blur(24px);
+  box-shadow:0 32px 80px rgba(0,0,0,.5),inset 0 1px 0 rgba(255,255,255,.08);
+  animation:fade-up .6s cubic-bezier(.22,1,.36,1) both;
+}
+.auth-wordmark{
+  text-align:center;margin-bottom:36px;
+}
+.auth-monogram{
+  display:inline-flex;align-items:center;justify-content:center;
+  width:44px;height:44px;border-radius:10px;
+  background:linear-gradient(135deg,#2563eb,#7c3aed);
+  font-size:13px;font-weight:800;color:#fff;letter-spacing:.08em;
+  margin-bottom:16px;box-shadow:0 8px 24px rgba(37,99,235,.4);
+}
+.auth-firm-name{color:rgba(255,255,255,.9);font-size:17px;font-weight:700;letter-spacing:-.2px;margin-bottom:3px}
+.auth-firm-sub{color:rgba(255,255,255,.3);font-size:11px;font-weight:400;letter-spacing:.06em;text-transform:uppercase}
+.auth-divider{width:40px;height:1px;background:rgba(255,255,255,.1);margin:24px auto}
+.auth-field{margin-bottom:12px}
+.auth-field label{display:block;color:rgba(255,255,255,.4);font-size:10.5px;font-weight:600;letter-spacing:.5px;text-transform:uppercase;margin-bottom:6px}
+.auth-field input{
+  width:100%;padding:12px 15px;
+  background:rgba(255,255,255,.05);
+  border:1px solid rgba(255,255,255,.1);
+  border-radius:10px;
+  color:#fff;font-size:14px;font-family:inherit;outline:none;
+  transition:border-color .2s,background .2s,box-shadow .2s;
+  box-sizing:border-box;
+}
+.auth-field input::placeholder{color:rgba(255,255,255,.2)}
+.auth-field input:focus{border-color:rgba(99,102,241,.7);background:rgba(99,102,241,.08);box-shadow:0 0 0 3px rgba(99,102,241,.15)}
+#authSubmit{
+  width:100%;margin-top:20px;padding:13px;
+  background:linear-gradient(135deg,#2563eb,#7c3aed);
+  background-size:200% 200%;
+  color:#fff;border:none;border-radius:10px;
+  font-size:14px;font-weight:600;cursor:pointer;
+  letter-spacing:.02em;
+  transition:opacity .2s,transform .15s,box-shadow .2s;
+  box-shadow:0 4px 20px rgba(37,99,235,.4);
+}
+#authSubmit:hover{opacity:.92;transform:translateY(-1px);box-shadow:0 8px 28px rgba(37,99,235,.5)}
+#authSubmit:active{transform:translateY(0)}
+#authErrMsg{margin-top:12px;color:#f87171;font-size:12px;text-align:center;min-height:16px}
+
+/* Welcome screen */
+#authWelcome{
+  position:relative;z-index:2;
+  text-align:center;
+  animation:greeting-in .8s cubic-bezier(.22,1,.36,1) both;
+  display:none;
+}
+.welcome-greeting{
+  color:rgba(255,255,255,.5);
+  font-family:'Cormorant Garamond',serif;
+  font-style:italic;
+  font-size:22px;
+  font-weight:400;
+  letter-spacing:.04em;
+  margin-bottom:4px;
+}
+.welcome-name{
+  font-family:'Great Vibes',cursive;
+  font-size:88px;
+  color:#fff;
+  line-height:1;
+  margin-bottom:20px;
+  background:linear-gradient(135deg,#a5b4fc,#e0e7ff,#c7d2fe);
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;
+  background-clip:text;
+  filter:drop-shadow(0 0 32px rgba(165,180,252,.35));
+}
+.welcome-firm{
+  color:rgba(255,255,255,.35);
+  font-size:12px;font-weight:500;
+  letter-spacing:.25em;text-transform:uppercase;
+  margin-bottom:10px;
+}
+.welcome-date-line{
+  color:rgba(255,255,255,.2);
+  font-size:12px;
+  letter-spacing:.08em;
+  margin-bottom:40px;
+}
+.welcome-enter-btn{
+  display:inline-flex;align-items:center;gap:8px;
+  padding:13px 32px;
+  background:rgba(255,255,255,.06);
+  border:1px solid rgba(255,255,255,.12);
+  border-radius:999px;
+  color:rgba(255,255,255,.75);
+  font-size:13.5px;font-weight:500;font-family:inherit;
+  cursor:pointer;letter-spacing:.02em;
+  transition:all .2s;
+  backdrop-filter:blur(8px);
+}
+.welcome-enter-btn:hover{background:rgba(255,255,255,.12);color:#fff;border-color:rgba(255,255,255,.2);transform:translateY(-1px)}
+.welcome-enter-btn .arrow{transition:transform .2s}
+.welcome-enter-btn:hover .arrow{transform:translateX(4px)}
+</style>
 <script>
-  (function(){
-    var PASS = "northcastle2024";
-    var KEY  = "ncp_auth";
-    if (sessionStorage.getItem(KEY) === PASS) return;
-    var css = [
-      "#authOverlay{position:fixed;inset:0;z-index:99999;background:#0c0c0c;display:flex;align-items:center;justify-content:center;font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;}",
-      "#authCard{width:360px;padding:52px 44px;border:1px solid #222;background:#111;display:flex;flex-direction:column;align-items:center;gap:0;}",
-      "#authMark{width:36px;height:36px;border:2px solid #4a90c4;display:flex;align-items:center;justify-content:center;margin-bottom:28px;}",
-      "#authMark span{color:#4a90c4;font-size:14px;font-weight:700;letter-spacing:.05em;}",
-      "#authFirm{color:#4a90c4;font-size:10px;font-weight:600;letter-spacing:.22em;text-transform:uppercase;margin-bottom:6px;}",
-      "#authTitle{color:#fff;font-size:17px;font-weight:600;letter-spacing:-.01em;margin-bottom:2px;}",
-      "#authSub{color:#555;font-size:11px;letter-spacing:.04em;text-transform:uppercase;margin-bottom:36px;}",
-      "#authDivider{width:100%;height:1px;background:#1e1e1e;margin-bottom:28px;}",
-      "#authInput{width:100%;padding:11px 14px;border:1px solid #2a2a2a;border-radius:3px;background:#0a0a0a;color:#fff;font-size:13px;font-family:inherit;outline:none;box-sizing:border-box;transition:border-color .15s;}",
-      "#authInput:focus{border-color:#4a90c4;}",
-      "#authBtn{margin-top:12px;width:100%;padding:11px;background:#1e3a5f;color:#fff;border:none;border-radius:3px;font-size:13px;font-weight:600;cursor:pointer;letter-spacing:.04em;transition:background .15s;}",
-      "#authBtn:hover{background:#162d4a;}",
-      "#authErr{margin-top:14px;color:#7f1d1d;font-size:11px;min-height:14px;letter-spacing:.01em;}"
-    ].join("");
-    var style = document.createElement("style"); style.textContent = css; document.head.appendChild(style);
-    document.addEventListener("DOMContentLoaded", function(){
-      var overlay = document.createElement("div"); overlay.id = "authOverlay";
-      overlay.innerHTML = '<div id="authCard">'
-        + '<div id="authMark"><span>NCP</span></div>'
-        + '<div id="authFirm">North Castle Partners</div>'
-        + '<div id="authTitle">Portfolio Monitor</div>'
-        + '<div id="authSub">Restricted Access</div>'
-        + '<div id="authDivider"></div>'
-        + '<input id="authInput" type="password" placeholder="Password" autocomplete="current-password" />'
-        + '<button id="authBtn">Enter</button>'
-        + '<div id="authErr"></div>'
-        + '</div>';
-      document.body.appendChild(overlay);
-      function attempt(){
-        var v = document.getElementById("authInput").value;
-        if (v === PASS){ sessionStorage.setItem(KEY, PASS); overlay.remove(); }
-        else { document.getElementById("authErr").textContent = "Incorrect password — try again."; document.getElementById("authInput").select(); }
-      }
-      document.getElementById("authBtn").addEventListener("click", attempt);
-      document.getElementById("authInput").addEventListener("keydown", function(e){ if(e.key==="Enter") attempt(); });
-      document.getElementById("authInput").focus();
-    });
-  })();
+(function(){
+  var PASS="northcastle2024", KEY="ncp_auth_v3", NAME_KEY="ncp_user_name";
+  var savedName=sessionStorage.getItem(NAME_KEY);
+  if(sessionStorage.getItem(KEY)===PASS && savedName) return; // already authed this session
+
+  function getGreeting(){
+    var h=new Date().getHours();
+    return h<12?"Good morning":h<17?"Good afternoon":"Good evening";
+  }
+
+  function buildOverlay(){
+    var overlay=document.createElement("div"); overlay.id="authOverlay";
+
+    // Background orbs
+    overlay.innerHTML='<div class="auth-orb o1"></div><div class="auth-orb o2"></div><div class="auth-orb o3"></div><div class="auth-noise"></div>';
+
+    // Login card
+    var login=document.createElement("div"); login.id="authLogin";
+    login.innerHTML=
+      '<div class="auth-wordmark">'
+      +'<div class="auth-monogram">NCP</div>'
+      +'<div class="auth-firm-name">North Castle Partners</div>'
+      +'<div class="auth-firm-sub">Portfolio Monitor</div>'
+      +'</div>'
+      +'<div class="auth-divider"></div>'
+      +'<div class="auth-field"><label>Your name</label><input id="authName" type="text" placeholder="First name" autocomplete="given-name"/></div>'
+      +'<div class="auth-field"><label>Password</label><input id="authPass" type="password" placeholder="Enter password" autocomplete="current-password"/></div>'
+      +'<button id="authSubmit">Continue →</button>'
+      +'<div id="authErrMsg"></div>';
+    overlay.appendChild(login);
+
+    // Welcome screen
+    var welcome=document.createElement("div"); welcome.id="authWelcome";
+    welcome.innerHTML=
+      '<div class="welcome-greeting" id="greetingText"></div>'
+      +'<div class="welcome-name" id="welcomeName"></div>'
+      +'<div class="welcome-firm">North Castle Partners · Portfolio Monitor</div>'
+      +'<div class="welcome-date-line" id="welcomeDate"></div>'
+      +'<button class="welcome-enter-btn" id="welcomeBtn">Enter Dashboard <span class="arrow">→</span></button>';
+    overlay.appendChild(welcome);
+
+    document.body.appendChild(overlay);
+
+    // Set date
+    var now=new Date();
+    document.getElementById("welcomeDate").textContent=
+      now.toLocaleDateString("en-US",{weekday:"long",month:"long",day:"numeric",year:"numeric"});
+
+    function attempt(){
+      var name=document.getElementById("authName").value.trim();
+      var pass=document.getElementById("authPass").value;
+      if(!name){document.getElementById("authErrMsg").textContent="Please enter your name.";return;}
+      if(pass!==PASS){document.getElementById("authErrMsg").textContent="Incorrect password — try again.";document.getElementById("authPass").select();return;}
+
+      // Auth passed — show welcome
+      sessionStorage.setItem(KEY,PASS);
+      sessionStorage.setItem(NAME_KEY,name);
+      document.getElementById("authLogin").style.cssText="opacity:0;transform:scale(.97);transition:all .35s cubic-bezier(.4,0,.2,1)";
+      setTimeout(function(){
+        document.getElementById("authLogin").style.display="none";
+        document.getElementById("greetingText").textContent=getGreeting()+",";
+        document.getElementById("welcomeName").textContent=name;
+        document.getElementById("authWelcome").style.display="block";
+        document.getElementById("welcomeBtn").focus();
+      },350);
+    }
+
+    function enterDash(){
+      document.getElementById("authWelcome").style.cssText="opacity:0;transform:scale(.97);transition:all .35s cubic-bezier(.4,0,.2,1)";
+      setTimeout(function(){ overlay.remove(); },350);
+    }
+
+    document.getElementById("authSubmit").addEventListener("click",attempt);
+    document.getElementById("authPass").addEventListener("keydown",function(e){if(e.key==="Enter")attempt();});
+    document.getElementById("authName").addEventListener("keydown",function(e){if(e.key==="Enter")document.getElementById("authPass").focus();});
+    document.getElementById("welcomeBtn").addEventListener("click",enterDash);
+    document.getElementById("authName").focus();
+  }
+
+  if(document.readyState==="loading") document.addEventListener("DOMContentLoaded",buildOverlay);
+  else buildOverlay();
+})();
 </script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js" onerror="window.__cdnFail='chartjs'"></script>
 <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js" onerror="window.__cdnFail=(window.__cdnFail||'')+',papaparse'"></script>
