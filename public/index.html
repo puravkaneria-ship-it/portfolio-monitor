@@ -24,10 +24,10 @@
   font-family:'Inter',-apple-system,sans-serif;
   overflow:hidden;
 }
-.auth-orb{position:absolute;border-radius:50%;filter:blur(80px);opacity:.55;animation:orb-float 8s ease-in-out infinite}
-.auth-orb.o1{width:500px;height:500px;background:radial-gradient(circle,#2d1b69,#1a0a3e);top:-100px;left:-80px;animation-duration:9s}
-.auth-orb.o2{width:400px;height:400px;background:radial-gradient(circle,#0c2a6e,#051640);bottom:-80px;right:-60px;animation:orb-float-2 11s ease-in-out infinite}
-.auth-orb.o3{width:300px;height:300px;background:radial-gradient(circle,#1a3a8f,#0d1f50);top:40%;left:60%;animation-duration:13s}
+.auth-orb{position:absolute;border-radius:50%;filter:blur(90px);opacity:.5;animation:orb-float 8s ease-in-out infinite}
+.auth-orb.o1{width:560px;height:560px;background:radial-gradient(circle,#1a6fd4,#0a2e6e);top:-120px;left:-100px;animation-duration:9s}
+.auth-orb.o2{width:420px;height:420px;background:radial-gradient(circle,#7ec8e3,#2a7ab8);bottom:-90px;right:-70px;animation:orb-float-2 11s ease-in-out infinite;opacity:.35}
+.auth-orb.o3{width:320px;height:320px;background:radial-gradient(circle,#3a8fd4,#0d3a7a);top:40%;left:58%;animation-duration:13s;opacity:.3}
 .auth-noise{position:absolute;inset:0;opacity:.03;background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")}
 
 /* Login card */
@@ -48,9 +48,9 @@
 .auth-monogram{
   display:inline-flex;align-items:center;justify-content:center;
   width:44px;height:44px;border-radius:10px;
-  background:linear-gradient(135deg,#2563eb,#7c3aed);
+  background:linear-gradient(135deg,#1a6fd4,#4a90d9);
   font-size:13px;font-weight:800;color:#fff;letter-spacing:.08em;
-  margin-bottom:16px;box-shadow:0 8px 24px rgba(37,99,235,.4);
+  margin-bottom:16px;box-shadow:0 8px 24px rgba(26,111,212,.45);
 }
 .auth-firm-name{color:rgba(255,255,255,.9);font-size:17px;font-weight:700;letter-spacing:-.2px;margin-bottom:3px}
 .auth-firm-sub{color:rgba(255,255,255,.3);font-size:11px;font-weight:400;letter-spacing:.06em;text-transform:uppercase}
@@ -67,16 +67,15 @@
   box-sizing:border-box;
 }
 .auth-field input::placeholder{color:rgba(255,255,255,.2)}
-.auth-field input:focus{border-color:rgba(99,102,241,.7);background:rgba(99,102,241,.08);box-shadow:0 0 0 3px rgba(99,102,241,.15)}
+.auth-field input:focus{border-color:rgba(74,144,217,.8);background:rgba(74,144,217,.08);box-shadow:0 0 0 3px rgba(74,144,217,.18)}
 #authSubmit{
   width:100%;margin-top:20px;padding:13px;
-  background:linear-gradient(135deg,#2563eb,#7c3aed);
-  background-size:200% 200%;
+  background:linear-gradient(135deg,#1a6fd4,#4a90d9);
   color:#fff;border:none;border-radius:10px;
   font-size:14px;font-weight:600;cursor:pointer;
   letter-spacing:.02em;
   transition:opacity .2s,transform .15s,box-shadow .2s;
-  box-shadow:0 4px 20px rgba(37,99,235,.4);
+  box-shadow:0 4px 20px rgba(26,111,212,.4);
 }
 #authSubmit:hover{opacity:.92;transform:translateY(-1px);box-shadow:0 8px 28px rgba(37,99,235,.5)}
 #authSubmit:active{transform:translateY(0)}
@@ -104,10 +103,10 @@
   color:#fff;
   line-height:1;
   margin-bottom:20px;
-  background:linear-gradient(135deg,#a5b4fc,#e0e7ff,#c7d2fe);
+  background:linear-gradient(135deg,#ffffff,#bfdbfe,#7ec8e3);
   -webkit-background-clip:text;-webkit-text-fill-color:transparent;
   background-clip:text;
-  filter:drop-shadow(0 0 32px rgba(165,180,252,.35));
+  filter:drop-shadow(0 0 32px rgba(126,200,227,.3));
 }
 .welcome-firm{
   color:rgba(255,255,255,.35);
@@ -313,11 +312,21 @@
   /* Present button */
   .present-btn{background:rgba(37,99,235,.2);border:1px solid rgba(37,99,235,.35);color:#93c5fd;padding:5px 13px;border-radius:6px;font-size:11.5px;font-weight:600;cursor:pointer;font-family:inherit;transition:all var(--tr);letter-spacing:.02em}
   .present-btn:hover{background:rgba(37,99,235,.35);border-color:rgba(37,99,235,.5);color:#bfdbfe}
-  body.present-mode header.app,body.present-mode nav.tabs,body.present-mode .footnote,body.present-mode .toolbar,body.present-mode button.btn:not(.present-btn){display:none!important}
-  body.present-mode main{padding:24px 36px;max-width:100%}
+  body.present-mode header.app,body.present-mode nav.tabs,body.present-mode .footnote,body.present-mode .toolbar{display:none!important}
+  body.present-mode main{padding:28px 40px;max-width:100%}
   body.present-mode .kpi .v{font-size:52px!important}
   body.present-mode h2.tab-title{font-size:28px}
-  body.present-mode .present-btn{position:fixed;bottom:20px;right:20px;z-index:100;background:var(--header);border:1px solid rgba(255,255,255,.15);color:rgba(255,255,255,.7);padding:8px 16px}
+  /* Floating exit button — always accessible in present mode */
+  #presentExitFloat{
+    display:none;position:fixed;bottom:24px;right:24px;z-index:9999;
+    background:var(--header);border:1px solid rgba(255,255,255,.18);
+    color:rgba(255,255,255,.75);padding:10px 20px;border-radius:8px;
+    font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;
+    box-shadow:0 4px 20px rgba(0,0,0,.4);transition:all .15s;letter-spacing:.02em;
+    backdrop-filter:blur(8px);
+  }
+  #presentExitFloat:hover{background:#1e293b;color:#fff;border-color:rgba(255,255,255,.3)}
+  body.present-mode #presentExitFloat{display:flex;align-items:center;gap:8px}
 
   /* ══ TABS ══ */
   nav.tabs{
@@ -484,6 +493,9 @@
     <div id="bootErr" style="margin-top:14px;color:#dc2626;text-align:left;display:none;font-family:ui-monospace,monospace;font-size:11.5px;background:#fef2f2;padding:10px;border-radius:8px;border:1px solid #fecaca;white-space:pre-wrap;max-height:240px;overflow:auto"></div>
   </div>
 </div>
+
+<!-- Floating exit button — lives outside header so it survives present mode -->
+<button id="presentExitFloat" onclick="togglePresent()">✕ Exit Presentation</button>
 
 <header class="app">
   <div>
@@ -1119,13 +1131,16 @@ function _updateLivePill(){
 }
 
 function togglePresent(){
-  document.body.classList.toggle("present-mode");
+  const on = document.body.classList.toggle("present-mode");
   const btn = document.getElementById("presentBtn");
-  const on = document.body.classList.contains("present-mode");
-  btn.textContent = on ? "✕ Exit" : "⊞ Present";
-  btn.style.background = on ? "rgba(239,68,68,.15)" : "";
-  btn.style.borderColor = on ? "rgba(239,68,68,.3)" : "";
-  btn.style.color = on ? "#ef4444" : "";
+  if(btn){
+    btn.textContent = on ? "✕ Exit" : "⊞ Present";
+    btn.style.background = on ? "rgba(196,151,58,.15)" : "";
+    btn.style.borderColor = on ? "rgba(196,151,58,.3)" : "";
+    btn.style.color = on ? "#C4973A" : "";
+  }
+  // Scroll to top in present mode for clean view
+  if(on) window.scrollTo({top:0,behavior:"smooth"});
 }
 
 function toggleLiveMode(){
@@ -1164,19 +1179,123 @@ function holdYears(p){
   const now = new Date(state.settings.asof || Date.now());
   return Math.max(0.25, (now - d) / (1000*60*60*24*365.25));
 }
-function moic(p){ return p.curValue / p.invested; }
-function irrApprox(p){ return Math.pow(moic(p), 1/holdYears(p)) - 1; }
-function revCagr(p){ return Math.pow(p.curRev/p.entryRev, 1/holdYears(p)) - 1; }
+function moic(p){ return p.invested>0 ? p.curValue/p.invested : null; }
+
+// Newton-Raphson IRR — accurate to 0.001% with up to 300 iterations
+// Models a single capital outflow at entry and value at current date
+function irrNewton(p){
+  const t = holdYears(p);
+  if(!p.invested||!p.curValue||t<=0) return null;
+  const cf = [-p.invested, p.curValue]; // simplified: entry out, current value in
+  const times = [0, t];
+  let r = 0.15; // initial guess 15%
+  for(let i=0;i<300;i++){
+    let npv=0, dnpv=0;
+    for(let j=0;j<cf.length;j++){
+      const disc = Math.pow(1+r, times[j]);
+      npv  += cf[j] / disc;
+      dnpv -= times[j] * cf[j] / (disc*(1+r));
+    }
+    if(Math.abs(dnpv)<1e-12) break;
+    const rNew = r - npv/dnpv;
+    if(Math.abs(rNew-r)<1e-7){ r=rNew; break; }
+    r = rNew;
+    if(r<-0.999) r=-0.999; // guard against blow-up
+  }
+  return isFinite(r)&&r>-1 ? r : null;
+}
+
+// Fund-level IRR using Modified Dietz approximation when individual IRRs available
+function fundIRR(ps){
+  if(!ps.length) return null;
+  const invested = ps.reduce((a,p)=>a+(+p.invested||0),0);
+  const fmv = ps.reduce((a,p)=>a+(+p.curValue||0),0);
+  const wtdHold = invested>0 ? ps.reduce((a,p)=>a+holdYears(p)*(+p.invested||0),0)/invested : null;
+  if(!invested||!wtdHold||wtdHold<=0) return null;
+  // Newton-Raphson on aggregate cash flows
+  const r0 = Math.pow(fmv/invested, 1/wtdHold) - 1;
+  let r = isFinite(r0) ? r0 : 0.15;
+  for(let i=0;i<200;i++){
+    const disc = Math.pow(1+r, wtdHold);
+    const npv  = -invested + fmv/disc;
+    const dnpv = -wtdHold*fmv/(disc*(1+r));
+    if(Math.abs(dnpv)<1e-12) break;
+    const rNew = r - npv/dnpv;
+    if(Math.abs(rNew-r)<1e-7){ r=rNew; break; }
+    r = Math.max(-0.999, rNew);
+  }
+  return isFinite(r)&&r>-1 ? r : null;
+}
+
+function revCagr(p){
+  if(!p.entryRev||p.entryRev<=0||!p.curRev) return null;
+  return Math.pow(p.curRev/p.entryRev, 1/holdYears(p)) - 1;
+}
 function ebitdaCagr(p){
-  if(p.entryEbitda<=0) return null;
+  if(!p.entryEbitda||p.entryEbitda<=0||!p.curEbitda) return null;
   return Math.pow(p.curEbitda/p.entryEbitda, 1/holdYears(p)) - 1;
 }
-function ebitdaMargin(p){ return p.curEbitda/p.curRev; }
+function ebitdaMargin(p){ return p.curRev>0 ? p.curEbitda/p.curRev : null; }
+function entryEbitdaMargin(p){ return p.entryRev>0 ? p.entryEbitda/p.entryRev : null; }
 function valueCreatedAbs(p){ return (p.curValue - p.invested); }
+
+// ── Value Creation Bridge (3-factor attribution) ──────────────────────────
+// 1. Earnings growth: ΔEBITDA × entry multiple
+// 2. Multiple expansion: Δmultiple × current EBITDA
+// 3. Debt paydown: reduction in net debt
 function ebitdaGrowthBridge(p){ return (p.curEbitda - p.entryEbitda) * p.entryMult; }
 function multipleBridge(p){ return (p.curMult - p.entryMult) * p.curEbitda; }
-function debtPaydown(p){ return p.entryDebt - p.curDebt; }
+function debtPaydown(p){ return (p.entryDebt||0) - (p.curDebt||0); }
 function totalEquityDelta(p){ return ebitdaGrowthBridge(p) + multipleBridge(p) + debtPaydown(p); }
+
+// ── Attribution %s ────────────────────────────────────────────────────────
+function bridgeAttribution(p){
+  const eg = ebitdaGrowthBridge(p), me = multipleBridge(p), dp = debtPaydown(p);
+  const total = Math.abs(eg)+Math.abs(me)+Math.abs(dp);
+  if(total===0) return {earningsGrowthPct:0, multipleExpPct:0, debtPaydownPct:0};
+  return {
+    earningsGrowthPct: eg/total*100,
+    multipleExpPct: me/total*100,
+    debtPaydownPct: dp/total*100
+  };
+}
+
+// ── LP-level fund metrics (TVPI, DPI, RVPI) ──────────────────────────────
+// TVPI = (Distributions + Residual NAV) / Paid-In
+// DPI  = Distributions / Paid-In   (we proxy distributions as 0 — no dist. field yet)
+// RVPI = Residual NAV / Paid-In    = TVPI when no distributions
+function tvpi(invested, distributions, rvNAV){
+  return invested>0 ? (distributions + rvNAV)/invested : null;
+}
+function dpi(invested, distributions){
+  return invested>0 ? distributions/invested : null;
+}
+function rvpi(invested, rvNAV){
+  return invested>0 ? rvNAV/invested : null;
+}
+
+// ── Gross vs Net MOIC (2% mgmt fee simple deduction proxy) ───────────────
+function netMOIC(grossMoic, holdYrs, mgmtFeePct=0.02){
+  if(!grossMoic||!holdYrs) return null;
+  const totalFees = mgmtFeePct * holdYrs; // simplified
+  return Math.max(0, grossMoic - totalFees);
+}
+
+// ── Public Market Equivalent (Kaplan-Schoar PME) ─────────────────────────
+// PME = (FMV / Invested) / (Index End / Index Start)
+// We use S&P 500 avg 10.5% annual as default public benchmark
+function pme(grossMoic, holdYrs, publicCAGR=0.105){
+  if(!grossMoic||!holdYrs) return null;
+  const publicMoic = Math.pow(1+publicCAGR, holdYrs);
+  return grossMoic / publicMoic;
+}
+
+// ── Working capital & leverage ratios ────────────────────────────────────
+function netDebtToEbitda(p){ return p.curEbitda>0 ? (p.curDebt||0)/p.curEbitda : null; }
+function entryLeverage(p){ return p.entryEbitda>0 ? (p.entryDebt||0)/p.entryEbitda : null; }
+function revenuePerEmployee(p){ return p.hcCur>0 ? (p.curRev||0)*1e6/p.hcCur : null; }
+function ebitdaPerEmployee(p){ return p.hcCur>0 ? (p.curEbitda||0)*1e6/p.hcCur : null; }
+
 function marginalBenefit(p){
   const sec = state.settings.sectorCagr[p.sector] ?? 0.04;
   const expectedEndEbitda = p.entryEbitda * Math.pow(1+sec, holdYears(p));
@@ -1203,18 +1322,44 @@ function fundRollup(){
             wtdMargin:null, wtdMOIC:null, irrApx:null, marg:0};
   }
   const tot = (k)=>ps.reduce((a,p)=>a+(+p[k]||0),0);
-  const invested = tot("invested");
-  const fmv = tot("curValue");
-  const totalRev = tot("curRev");
+  const invested    = tot("invested");
+  const fmv         = tot("curValue");
+  const totalRev    = tot("curRev");
   const totalEbitda = tot("curEbitda");
   const totalEntryEbitda = tot("entryEbitda");
-  const totalGrossProfit = ps.reduce((a,p)=>a + (p.curRev*p.curGM||0),0);
+  const totalGrossProfit = ps.reduce((a,p)=>a+(p.curRev*(p.curGM||0)),0);
+
   const wtdMargin = totalRev>0 ? totalEbitda/totalRev : null;
-  const wtdHold = invested>0 ? ps.reduce((a,p)=>a+holdYears(p)*p.invested,0)/invested : null;
-  const wtdMOIC = invested>0 ? fmv/invested : null;
-  const irrApx = (wtdMOIC!=null && wtdHold>0) ? Math.pow(wtdMOIC, 1/wtdHold) - 1 : null;
+  const wtdHold   = invested>0 ? ps.reduce((a,p)=>a+holdYears(p)*(+p.invested||0),0)/invested : null;
+
+  // Gross MOIC = FMV / Total invested
+  const grossMOIC = invested>0 ? fmv/invested : null;
+
+  // Newton-Raphson fund IRR
+  const irrApx = fundIRR(ps);
+
+  // LP metrics (DPI=0 since no distributions field yet)
+  const tvpiVal = tvpi(invested, 0, fmv);   // TVPI ≈ RVPI until exits
+  const dpiVal  = dpi(invested, 0);          // 0 — no realized exits tracked
+  const rvpiVal = rvpi(invested, fmv);
+
+  // Net MOIC (2% annual mgmt fee proxy)
+  const netMoic = netMOIC(grossMOIC, wtdHold);
+
+  // PME vs S&P 500 (10.5% CAGR default)
+  const pmeVal  = pme(grossMOIC, wtdHold);
+
+  // Portfolio-level attribution
+  const totalEG = ps.reduce((a,p)=>a+ebitdaGrowthBridge(p),0);
+  const totalME = ps.reduce((a,p)=>a+multipleBridge(p),0);
+  const totalDP = ps.reduce((a,p)=>a+debtPaydown(p),0);
+
   const marg = ps.reduce((a,p)=>a+marginalBenefit(p),0);
-  return {n, invested, fmv, totalRev, totalEbitda, totalEntryEbitda, totalGrossProfit, wtdMargin, wtdMOIC, irrApx, marg};
+  const wtdMOIC = grossMOIC; // keep alias for compatibility
+
+  return {n, invested, fmv, totalRev, totalEbitda, totalEntryEbitda, totalGrossProfit,
+          wtdMargin, wtdMOIC, grossMOIC, netMoic, irrApx, tvpiVal, dpiVal, rvpiVal, pmeVal,
+          wtdHold, totalEG, totalME, totalDP, marg};
 }
 
 /* ============================================================
@@ -1231,11 +1376,11 @@ function renderKPIs(){
   const f = fundRollup();
   const cards = [
     { n:"1.1.1", label:"Portfolio companies", v: f.n, d: f.n===0 ? "drop a file in Data Lab" : "active in fund" },
-    { n:"1.1.2", label:"Total invested", v: fmtMshort(f.invested), d:"USD millions" },
-    { n:"1.1.3", label:"Fair value", v: fmtMshort(f.fmv), d:"USD millions" },
-    { n:"1.1.4", label:"Gross MOIC", v: f.wtdMOIC==null?"—":f.wtdMOIC.toFixed(2)+"x", d:"return multiple" },
-    { n:"1.1.5", label:"IRR", v: f.irrApx==null?"—":(f.irrApx*100).toFixed(1)+"%", d:"annualized return" },
-    { n:"1.1.6", label:"Total EBITDA", v: fmtMshort(f.totalEbitda), d:"trailing twelve months" },
+    { n:"1.1.2", label:"Total invested", v: fmtMshort(f.invested), d:"paid-in capital" },
+    { n:"1.1.3", label:"Fair value (NAV)", v: fmtMshort(f.fmv), d:"residual value" },
+    { n:"1.1.4", label:"Gross MOIC", v: f.grossMOIC==null?"—":f.grossMOIC.toFixed(2)+"x", d:f.netMoic?"net "+f.netMoic.toFixed(2)+"x":"before fees & carry" },
+    { n:"1.1.5", label:"Gross IRR", v: f.irrApx==null?"—":(f.irrApx*100).toFixed(1)+"%", d:"Newton-Raphson · annualized" },
+    { n:"1.1.6", label:"TVPI", v: f.tvpiVal==null?"—":f.tvpiVal.toFixed(2)+"x", d:f.rvpiVal?"RVPI "+f.rvpiVal.toFixed(2)+"x · DPI "+( f.dpiVal?.toFixed(2)??"0.00")+"x":"total value / paid-in" },
   ];
   document.getElementById("kpiCards").innerHTML = cards.map(c=>`
     <div class="panel kpi">
