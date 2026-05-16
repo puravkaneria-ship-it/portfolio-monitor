@@ -1,0 +1,85 @@
+PINNACLE BUSINESS SOLUTIONS
+BOARD OF DIRECTORS — MATERIALS
+Q3 2024 | September 30, 2024
+NORTH CASTLE PARTNERS — PORTFOLIO UPDATE
+CONFIDENTIAL — PRIVILEGED AND CONFIDENTIAL
+
+═══════════════════════════════════════
+SECTION 1: EXECUTIVE SUMMARY
+═══════════════════════════════════════
+
+Portfolio Company:  Pinnacle Business Solutions ("PBS" or the "Company")
+Sector:             B2B Software
+Acquisition:        August 14, 2020
+Entry Equity:       $47.0M
+Holding Period:     4.1 years
+
+STATUS: ON PLAN
+
+The Company continues to execute on its land-and-expand SaaS go-to-market. Q3 ARR growth of 31% YoY, net dollar retention of 118%, and improving unit economics position PBS for a 2026 exit process.
+
+═══════════════════════════════════════
+SECTION 2: Q3 2024 FINANCIAL RESULTS
+═══════════════════════════════════════
+
+                    Q3 2024     Q3 2023     YoY Δ
+                    ───────     ───────     ──────
+Revenue             $11.3M      $8.6M       +31.4%
+Recurring Revenue   $10.1M      $7.5M       +34.7%
+EBITDA              $2.9M       $1.8M       +61.1%
+EBITDA Margin       25.7%       20.9%       +480bps
+Gross Margin        72.4%       68.1%       +430bps
+
+TTM (LTM) Metrics as of September 30, 2024:
+  Revenue:   $41.8M
+  EBITDA:    $10.2M
+  ARR:       $38.5M
+
+Balance Sheet:
+  Cash:          $8.3M
+  Total Debt:    $35.0M
+  Net Debt:      $26.7M
+  Net Leverage:  2.6x
+
+Headcount: 203 employees (up from 178 at year-end 2023)
+
+SaaS Metrics:
+  Net Revenue Retention (NRR):   118%
+  CAC Payback Period:            14 months
+  Logo Churn:                    3.2% annualized
+  ACV (avg contract value):      $52K
+
+═══════════════════════════════════════
+SECTION 3: ENTRY vs. CURRENT SNAPSHOT
+═══════════════════════════════════════
+
+                        Entry (Aug 2020)    Current (Q3'24)
+                        ────────────────    ───────────────
+Revenue (TTM)           $18.2M              $41.8M
+EBITDA (TTM)            $2.8M               $10.2M
+EBITDA Margin           15.4%               24.4%
+Gross Margin            63.0%               72.4%
+ARR                     $16.5M              $38.5M
+NRR                     104%                118%
+Net Debt                $22.0M              $26.7M
+EV / EBITDA Multiple    12.5x               —
+Headcount               112                 203
+
+Entry EV:  $57.0M ($47M equity + $22M net debt at close, 12.5× $2.8M + adj)
+Current EV / EBITDA Multiple:  13.0x (sector comps: 12x–15x range)
+
+═══════════════════════════════════════
+SECTION 4: VALUE CREATION UPDATE
+═══════════════════════════════════════
+
+Value Creation Attribution (Q3 2024 estimate):
+  Earnings Growth:        +$9.5M EBITDA added → primary value driver
+  Multiple Expansion:     Modest; sector multiples compressed slightly since entry
+  Debt Paydown:           $4.7M net debt reduction since close (aided by cash gen)
+
+Board Action Items:
+  1. Approve 2025 budget framework (CFO to present at November board)
+  2. Discuss strategic alternatives timeline: management team preference is H1 2026 process
+  3. Review three channel partnership term sheets (Salesforce, SAP, ServiceNow)
+
+Company Notes: CBS remains a fund standout. CAC payback improvement from 22 months at entry to 14 months today is the clearest proof of GTM efficiency gains. Watch customer concentration: top 3 customers = 28% of ARR.

@@ -1,0 +1,66 @@
+SUMMIT FINANCIAL SERVICES GROUP
+MANAGEMENT DISCUSSION & ANALYSIS
+Full Year 2024 | North Castle Partners Portfolio Review
+CONFIDENTIAL
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+COMPANY OVERVIEW
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Summit Financial Services Group ("Summit" or the "Company") provides outsourced payroll processing, benefits administration, and HR compliance software to small and mid-market businesses with 50–500 employees. North Castle Partners acquired Summit in April 2019.
+
+Sector: Financial Services
+Vintage: 2019-04-08
+Entry Equity: $55M
+Entry Headcount: 289
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FULL YEAR 2024 FINANCIAL RESULTS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Revenue grew to $74.8 million in fiscal year 2024, representing growth of 17.3% compared to $63.8 million in 2023. This growth reflects continued client retention above 94%, the contribution of two bolt-on acquisitions completed in 2023 (representing approximately $6.2M of incremental annualized revenue), and organic new logo growth of approximately 11%.
+
+EBITDA for the full year reached $18.7 million, an increase of 26.4% from $14.8 million in the prior year. The EBITDA margin expanded to 25.0% from 23.2%, reflecting operating leverage on the fixed cost base as revenue scaled, partially offset by elevated integration costs associated with the acquired businesses.
+
+Gross profit margin improved to 61.8% in 2024 compared to 58.4% in 2023, driven by a favorable shift in revenue mix toward higher-margin software and compliance products (now 44% of revenue, up from 37%).
+
+Net debt at December 31, 2024 was $29.3 million, down from $36.1 million at the prior year-end, reflecting $9.2 million of free cash flow generation partially offset by earnout payments on the 2023 acquisitions.
+
+Current headcount as of December 31, 2024: 412 employees, compared to 371 at the start of the year.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+COMPARISON TO ENTRY (April 2019)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+At the time of acquisition, the Company generated TTM revenue of $31.2 million and EBITDA of $5.6 million, implying an entry EBITDA margin of 17.9%. Entry gross margin was 51.2%. The acquisition was completed at an enterprise value of $72.5 million, representing a 12.9x entry EBITDA multiple. Net debt at entry was $17.5 million.
+
+Revenue has grown at a compound annual rate of approximately 15.6% since acquisition, reflecting the combination of organic growth initiatives and strategic acquisitions.
+
+Entry Revenue: $31.2M
+Entry EBITDA: $5.6M
+Entry Gross Margin: 51.2%
+Entry Net Debt: $17.5M
+Entry EV / EBITDA: 12.9x
+Entry Multiple at: 12.9x
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+OPERATIONAL HIGHLIGHTS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Client Retention: Annual client retention of 94.2% in 2024, a record high for the Company, compared to 91.8% in 2023. The improvement reflects the launch of a dedicated client success program in Q1 2024 and the migration of approximately 600 legacy clients to the new Summit One platform.
+
+Product Mix Shift: Software and compliance revenue (higher margin) grew 34.2% in 2024 to $32.9 million. Payroll processing revenue grew 8.1% to $41.9 million. Management expects software mix to exceed 50% of total revenue by 2026.
+
+Technology Investment: The Company completed Phase 1 of the Summit One platform consolidation in Q3 2024, retiring two legacy payroll processing systems. Annual run-rate cost savings of approximately $2.3 million are expected beginning in Q1 2025.
+
+Acquisitions: Two bolt-on acquisitions were integrated during 2024 — Tri-State Payroll (Philadelphia-area, 140 clients) and Great Lakes Benefits (Chicago-area, 210 clients). Integration is complete and both are on the Summit One platform as of Q4 2024.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+OUTLOOK AND 2025 PRIORITIES
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Management projects 2025 revenue in the range of $84–$88 million and EBITDA of $22–$24 million, representing continued margin expansion to approximately 27%. The primary growth drivers are expected to be: organic new logo growth (target: 180 new clients), upsell of compliance and AI-powered HR tools to existing payroll clients, and potential tuck-in acquisition activity in the Southeast.
+
+The Company is actively exploring a refinancing of its existing credit facility to take advantage of improved leverage metrics (currently 1.6x net debt / EBITDA, down from 3.1x at entry) and to provide additional acquisition capacity.
+
+Notes: Summit is approaching exit-readiness. Comparable transactions in outsourced HCM have cleared 14x–16x EBITDA for businesses with >$15M EBITDA and 90%+ retention. At 14x, current FMV is approximately $262M on $18.7M EBITDA, implying a gross MOIC of approximately 3.5x on the $55M equity check (net of $29M current debt). Management team is strong; CFO Sarah Kim joined from ADP and has driven the product mix shift.
