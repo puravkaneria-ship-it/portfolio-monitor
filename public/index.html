@@ -1510,7 +1510,7 @@ function renderLeaderboard(){
   let rows = state.portcos.map(p=>({
     name:p.name, sector:p.sector, vintage:p.vintage, hold:holdYears(p),
     invested:p.invested, currentValue:p.curValue,
-    moic:moic(p), irr:irrApprox(p),
+    moic:moic(p), irr:irrNewton(p),
     revCagr:revCagr(p), ebitdaCagr:ebitdaCagr(p),
     ebitdaMargin:ebitdaMargin(p), status:p.status,
     valueCreated:valueCreatedAbs(p),
@@ -1574,7 +1574,7 @@ function exportLeaderboardCSV(){
   const rows = state.portcos.map(p=>({
     company:p.name, sector:p.sector, vintage:p.vintage, status:p.status,
     invested:p.invested, currentValue:p.curValue, moic:moic(p).toFixed(3),
-    irr_approx:(irrApprox(p)*100).toFixed(2)+"%",
+    irr_approx:(irrNewton(p)*100).toFixed(2)+"%",
     rev_cagr:(revCagr(p)*100).toFixed(2)+"%",
     ebitda_cagr:(ebitdaCagr(p)==null?"":(ebitdaCagr(p)*100).toFixed(2)+"%"),
     margin:(ebitdaMargin(p)*100).toFixed(2)+"%",
@@ -1911,7 +1911,7 @@ const dlg = {
         <div class="panel kpi"><h4><span class="num">a</span>Invested</h4><div class="v num">${fmtMshort(p.invested)}</div></div>
         <div class="panel kpi"><h4><span class="num">b</span>Fair value</h4><div class="v num">${fmtMshort(p.curValue)}</div></div>
         <div class="panel kpi"><h4><span class="num">c</span>MOIC</h4><div class="v num">${moic(p).toFixed(2)}x</div></div>
-        <div class="panel kpi"><h4><span class="num">d</span>IRR (approx)</h4><div class="v num">${(irrApprox(p)*100).toFixed(1)}%</div></div>
+        <div class="panel kpi"><h4><span class="num">d</span>IRR (approx)</h4><div class="v num">${(irrNewton(p)*100).toFixed(1)}%</div></div>
       </div>
 
       <h3 style="margin-top:14px"><span class="ord">a.</span>Key notes</h3>
@@ -2560,7 +2560,7 @@ async function generateClaudeNotes(portcoId){
     holdYears: +holdYears(p).toFixed(2),
     invested: p.invested, currentValue: p.curValue,
     moic: +moic(p).toFixed(2),
-    irrApprox: +(irrApprox(p)*100).toFixed(1),
+    irrApprox: +(irrNewton(p)*100).toFixed(1),
     entryRev: p.entryRev, curRev: p.curRev,
     entryEbitda: p.entryEbitda, curEbitda: p.curEbitda,
     entryMult: p.entryMult, curMult: p.curMult,
