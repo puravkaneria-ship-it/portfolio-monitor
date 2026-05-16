@@ -2841,59 +2841,147 @@ async function ingestPDF(arrayBuffer, filename){
 }
 
 function parsePDFText(text, filename){
-  // Normalize: collapse multiple spaces
-  const T = text.replace(/[ \t]+/g, " ");
+  const T  = text.replace(/[ \t]+/g," ");
+  const lines = text.split("\n").map(l=>l.trim()).filter(l=>l.length>0);
   const found = {};
 
-  // Try to extract company name from filename or first heading line
-  const fnameGuess = filename.replace(/\.pdf$/i, "").replace(/[_\-]+/g, " ").replace(/\b(financials?|board|deck|q[1-4]|fy?\d{2,4}|monthly|annual|report)\b/gi, "").trim();
-  const firstLine = (text.split("\n").map(l=>l.trim()).find(l=>l.length>3 && l.length<70 && /[A-Za-z]/.test(l))) || "";
-  found.name = fnameGuess.length>2 ? fnameGuess.replace(/\s+/g," ") : firstLine;
+  // ── Company name ──────────────────────────────────────────────────────
+  const fnameGuess = filename.replace(/\.[a-z]+$/i,"").replace(/[_\-]+/g," ")
+    .replace(/\b(financials?|board|deck|q[1-4]|fy?\d{2,4}|monthly|annual|report|summary|update|kpi|management|presentation|speaker|notes?|memo|ceo|cfo)\b/gi,"").trim();
+  const headLine = lines.find(l=>l.length>3&&l.length<80&&/[A-Za-z]/.test(l)&&!/^(page|confidential|draft|strictly|prepared|internal)/i.test(l))||"";
+  found.name = fnameGuess.length>2 ? fnameGuess.replace(/\s+/g," ") : headLine;
 
-  const num = (s)=>{
-    if (!s) return null;
-    // accept $1,234.5 / 1.2M / 1,234 / (1,234) for negative
-    const neg = /^\(.*\)$/.test(s);
-    const cleaned = s.replace(/[^\d.\-MmKkBb]/g,"");
-    let v = parseFloat(cleaned);
-    if (isNaN(v)) return null;
-    if (/m/i.test(s)) v = v;          // already millions
-    else if (/k/i.test(s)) v = v/1000; // K → M
-    else if (/b/i.test(s)) v = v*1000; // B → M
-    else if (v > 1e6) v = v/1e6;       // raw $: assume actual dollars, convert to M
-    else if (v > 1e3 && v < 1e6) v = v/1e3; // K range → M? leave as-is (likely already $M)
-    if (neg) v = -v;
-    return v;
+  // ── Number parser — handles all common financial formats ──────────────
+  const parseNum = (s)=>{
+    if(!s) return null;
+    s = String(s).trim();
+    const neg = /^\(.*\)$|^-/.test(s);
+    s = s.replace(/[$()\-,]/g,"").trim();
+    // Written-out units: "45.2 million" "1.2 billion" "500 thousand"
+    const wm = s.match(/^([\d.]+)\s*(million|billion|thousand|mm?|bb?|kk?)\b/i);
+    let v;
+    if(wm){
+      v = parseFloat(wm[1]);
+      const u = wm[2].toLowerCase();
+      if(u==="billion"||u==="b"||u==="bb") v*=1000;
+      else if(u==="thousand"||u==="k"||u==="kk") v/=1000;
+      // million / m / mm → already in millions
+    } else {
+      v = parseFloat(s.replace(/[^\d.]/g,""));
+      if(isNaN(v)) return null;
+      if(v>=1e9)       v/=1e6;   // raw dollars (billions)
+      else if(v>=1e6)  v/=1e6;   // raw dollars (millions)
+      else if(v>=1e4)  v/=1e3;   // raw dollars (hundred-thousands → likely $K, convert to $M)
+      // <1e4 → already in $M or headcount range — keep as-is
+    }
+    return isNaN(v)?null:(neg?-v:v);
   };
 
-  // Patterns to scan. The regex looks for a label, optional currency word, then a number with optional units.
-  const NUM_RE = /\$?\s*\(?\s*[\d,]+\.?\d*\s*\)?\s*(?:M|MM|million|B|billion|K|thousand)?/i;
+  const NUM_RE = /\$?\s*\(?\s*[\d,]+\.?\d*\s*\)?\s*(?:MM?|million|billion|BB?|KK?|thousand)?/i;
+
+  // grab: inline "Label: $value" on same line
   const grab = (labels)=>{
-    for (const lab of labels){
-      // label optionally followed by colon, then a number within ~80 chars
-      const re = new RegExp("(?:" + lab + ")\\s*[:\\-]?\\s*(" + NUM_RE.source + ")", "i");
+    for(const lab of labels){
+      const re = new RegExp("(?:"+lab+")\\s*[:\\-–|\\t]?\\s*("+NUM_RE.source+")","i");
       const m = T.match(re);
-      if (m) return num(m[1]);
+      if(m){ const v=parseNum(m[1]); if(v!==null) return v; }
     }
     return null;
   };
 
-  found.curRev      = grab(["Revenue","Total Revenue","Net Revenue","Net Sales","Total Sales","Sales"]);
-  found.curEbitda   = grab(["Adjusted EBITDA","Adj\\. EBITDA","EBITDA"]);
-  found.curDebt     = grab(["Net Debt","Total Debt","Debt Outstanding","Long[- ]term Debt"]);
-  found.hcCur       = grab(["Headcount","Employees","FTEs","Total Employees","Full[- ]time Employees"]);
-  found.curGM       = (()=>{ const g = grab(["Gross Margin","Gross Profit Margin"]); if (g==null) return null; return g>1? g/100 : g; })();
-  found.nrr         = grab(["Net Revenue Retention","NRR","Net Retention"]);
-  found.cacPayback  = grab(["CAC Payback","Payback Period"]);
+  // grabTable: label alone on one line, number on the next line
+  const grabTable = (labels)=>{
+    for(let i=0;i<lines.length-1;i++){
+      for(const lab of labels){
+        if(new RegExp("^\\s*(?:"+lab+")\\s*[:\\-–]?\\s*$","i").test(lines[i])){
+          const v=parseNum(lines[i+1]); if(v!==null) return v;
+        }
+        const m=lines[i].match(new RegExp("^(?:"+lab+")\\s*[:\\-–|\\t]+\\s*("+NUM_RE.source+")","i"));
+        if(m){ const v=parseNum(m[1]); if(v!==null) return v; }
+      }
+    }
+    return null;
+  };
 
-  // Best-effort entry vs current pattern: many decks include "Y0 / At Acquisition / Entry"
-  found.entryRev    = grab(["Revenue at Entry","Y0 Revenue","Entry Revenue","Acquisition Revenue"]);
-  found.entryEbitda = grab(["EBITDA at Entry","Y0 EBITDA","Entry EBITDA","Acquisition EBITDA"]);
-  found.entryDebt   = grab(["Debt at Entry","Entry Debt","Acquisition Debt"]);
+  // grabNarrative: "Revenue grew to $45.2 million" / "Revenue of $45M"
+  const grabNarr = (metric)=>{
+    const re = new RegExp(metric+"\\s+(?:of|grew[^$\\d]*to|increased[^$\\d]*to|was|totaled?|reached|at)[^$\\d]*\\$?\\s*([\\d,.]+\\s*(?:million|billion|M|B|MM)?(?:\\s+million|\\s+billion)?(?:\\s+dollars?)?)", "i");
+    const m=T.match(re); return m?parseNum(m[1]):null;
+  };
 
-  // remove nulls
-  const out = {};
-  for (const [k,v] of Object.entries(found)) if (v!=null && v!=="" && !(typeof v==="number"&&isNaN(v))) out[k]=v;
+  // ── Current-period financials ─────────────────────────────────────────
+  found.curRev =
+    grab(["Revenue","Total Revenue","Net Revenue","Net Sales","Total Sales","TTM Revenue","LTM Revenue","Annual Revenue","Sales"])||
+    grabTable(["Revenue","Net Revenue","Net Sales","Total Revenue","Sales"])||
+    grabNarr("Revenue")||grabNarr("sales");
+
+  found.curEbitda =
+    grab(["Adjusted EBITDA","Adj\\.? EBITDA","EBITDA","Operating Income","Adj\\. Operating Income"])||
+    grabTable(["EBITDA","Adjusted EBITDA","Adj. EBITDA","Operating Income"])||
+    grabNarr("EBITDA")||grabNarr("adjusted EBITDA");
+
+  found.curDebt =
+    grab(["Net Debt","Total Debt","Debt Outstanding","Long[- ]?term Debt","Total Borrowings","Senior Debt","Total Net Debt"])||
+    grabTable(["Net Debt","Total Debt","Long-Term Debt","Debt"]);
+
+  const rawGM = grab(["Gross Margin\\s*%?","Gross Profit Margin","GP Margin","Gross Profit \\%"])||
+                grabTable(["Gross Margin","Gross Profit Margin","GP Margin"]);
+  if(rawGM!==null) found.curGM = rawGM>1 ? rawGM/100 : rawGM;
+
+  // Headcount: DON'T scale — raw headcount numbers
+  const hcRaw = grab(["Headcount","\\bEmployees\\b","\\bFTEs\\b","Total Employees","Full[- ]?time Employees","Total FTEs","Team Size","Employee Count","Staff Count"])||
+                grabTable(["Headcount","Employees","FTEs","Team Size"]);
+  if(hcRaw!==null){
+    // undo any accidental M-scaling: if looks like it was scaled as millions, unscale
+    found.hcCur = hcRaw<1 ? Math.round(hcRaw*1000000) : Math.round(hcRaw);
+  }
+
+  found.nrr =
+    grab(["Net Revenue Retention","\\bNRR\\b","Net Retention Rate","Net Dollar Retention","\\bNDR\\b"])||
+    grabTable(["NRR","Net Revenue Retention","Net Retention"]);
+
+  found.cacPayback =
+    grab(["CAC Payback","Payback Period","Payback Months","CAC Payback Period"])||
+    grabTable(["CAC Payback","Payback Period","Payback Months"]);
+
+  // ── Entry / acquisition metrics ───────────────────────────────────────
+  found.entryRev    = grab(["Revenue at Entry","Entry Revenue","At Acquisition Revenue","Y0 Revenue","Acquisition Revenue","Revenue at Close","Revenue at Acquisition","Entry \\/ Current Revenue"]);
+  found.entryEbitda = grab(["EBITDA at Entry","Entry EBITDA","At Acquisition EBITDA","Y0 EBITDA","Acquisition EBITDA","EBITDA at Close","EBITDA at Acquisition"]);
+  found.entryDebt   = grab(["Debt at Entry","Entry Debt","Acquisition Debt","Debt at Close","Debt at Acquisition","Net Debt at Entry"]);
+  found.entryMult   = grab(["Entry Multiple","Purchase Multiple","Entry EV\\/EBITDA","Acquisition Multiple","Entry Valuation Multiple"]);
+  found.curMult     = grab(["Current Multiple","Current EV\\/EBITDA","LTM Multiple","Current Valuation Multiple"]);
+  found.invested    = grab(["Equity Invested","Equity Investment","Capital Invested","Investment Amount","Equity Check","Total Invested","Invested Equity","Purchase Equity"]);
+
+  const entryGMraw = grab(["Entry Gross Margin","Gross Margin at Entry","Entry GM"]);
+  if(entryGMraw!==null) found.entryGM = entryGMraw>1?entryGMraw/100:entryGMraw;
+
+  found.entryHC = grab(["Headcount at Entry","Entry Headcount","Employees at Acquisition","Team Size at Entry"]);
+  if(found.entryHC!==null&&found.entryHC<1) found.entryHC=Math.round(found.entryHC*1000000);
+
+  // ── Vintage / acquisition date ────────────────────────────────────────
+  const dateRe = /(?:acquired?|acquisition date|close date|investment date|entry date|transaction date|closing date)\s*[:\-]?\s*(\w+ \d{4}|\d{1,2}\/\d{4}|\d{4}-\d{2}-\d{2}|\w+ \d{1,2},? \d{4})/i;
+  const dm = T.match(dateRe);
+  if(dm){ const d=new Date(dm[1]); if(!isNaN(d)) found.vintage=d.toISOString().slice(0,10); }
+
+  // ── Sector detection ─────────────────────────────────────────────────
+  const sectorMap = [
+    [/health[- ]?care|medical|clinical|pharma|dental|behavioral|hospital|physician|home health/i,"Healthcare Services"],
+    [/consumer|brand|retail|food|beverage|apparel|e[- ]?commerce|DTC|direct.to.consumer|nutrition/i,"Consumer Brands"],
+    [/software|SaaS|platform|technology|tech\b|cloud|B2B|enterprise software|application/i,"B2B Software"],
+    [/industrial|manufactur|distribution|logistics|facility|maintenance|MRO|HVAC|environmental|industrial services|building services/i,"Industrial Services"],
+    [/financ|insurance|fintech|wealth|advisory|lending|payment|banking|investment management/i,"Financial Services"],
+  ];
+  for(const [re,sec] of sectorMap){ if(re.test(T)){ found.sector=sec; break; } }
+
+  // ── Period / quarter (store as note) ─────────────────────────────────
+  const pm = T.match(/(Q[1-4]\s*(?:20\d{2}|'\d{2})|FY\s*(?:20\d{2}|'\d{2})|(?:First|Second|Third|Fourth)\s+Quarter\s+20\d{2}|(?:H[12]|Half)\s+20\d{2})/i);
+  if(pm) found._period = pm[1].trim();
+
+  // ── Remove nulls ──────────────────────────────────────────────────────
+  const out={};
+  for(const [k,v] of Object.entries(found)){
+    if(v!=null&&v!==""&&!(typeof v==="number"&&isNaN(v))) out[k]=v;
+  }
   return out;
 }
 
