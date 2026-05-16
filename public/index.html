@@ -206,7 +206,12 @@
 
     function enterDash(){
       document.getElementById("authWelcome").style.cssText="opacity:0;transform:scale(.97);transition:all .35s cubic-bezier(.4,0,.2,1)";
-      setTimeout(function(){ overlay.remove(); },350);
+      setTimeout(function(){
+        overlay.remove();
+        // Trigger header typing animation on fresh login
+        sessionStorage.setItem("ncp_typed","1");
+        startHeaderTyping();
+      },350);
     }
 
     document.getElementById("authSubmit").addEventListener("click",attempt);
@@ -234,7 +239,7 @@
   }
 </script>
 <style>
-  @import url('https://fonts.googleapis.com/css2?family=Inter:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;1,400&display=swap');
+  @import url('https://fonts.googleapis.com/css2?family=Inter:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;1,400&family=Space+Grotesk:wght@400;500;600;700&display=swap');
   :root{
     /* Baby blue · Cream · Gold */
     --bg:#C8E6F8;
@@ -293,42 +298,81 @@
   header.app,nav.tabs,main{position:relative;z-index:1}
   a{color:var(--accent);text-decoration:none}
 
-  /* ══ HEADER — warm frosted glass ══ */
-  header.app{
-    display:flex;align-items:center;padding:0 36px;height:62px;
-    background:rgba(16,11,5,.88);
-    backdrop-filter:blur(28px);
-    -webkit-backdrop-filter:blur(28px);
-    position:sticky;top:0;z-index:10;
-    border-bottom:1px solid rgba(196,151,58,.14);
+  /* ══ HEADER — curved premium glass ══ */
+  @keyframes header-shimmer{
+    0%{background-position:0% 50%} 50%{background-position:100% 50%} 100%{background-position:0% 50%}
   }
-  /* Gold + blue accent line along the very top */
+  @keyframes cursor-blink{0%,100%{opacity:1}50%{opacity:0}}
+
+  header.app{
+    display:flex;align-items:center;padding:0 32px;height:66px;
+    background:linear-gradient(135deg,#060f1e 0%,#0c1e3a 45%,#071628 100%);
+    backdrop-filter:blur(32px);-webkit-backdrop-filter:blur(32px);
+    position:sticky;top:0;z-index:10;
+    border-radius:0 0 24px 24px;
+    box-shadow:
+      0 12px 48px rgba(6,15,30,.55),
+      0 4px 16px rgba(42,127,196,.12),
+      inset 0 1px 0 rgba(255,255,255,.06);
+    border:none;
+    overflow:hidden;
+  }
+  /* Animated gradient shimmer across top */
   header.app::before{
     content:'';position:absolute;top:0;left:0;right:0;height:2px;
-    background:linear-gradient(90deg,transparent 0%,rgba(196,151,58,.7) 25%,rgba(74,144,217,.6) 60%,transparent 100%);
+    background:linear-gradient(90deg,
+      transparent 0%,
+      rgba(42,127,196,.0) 10%,
+      rgba(42,127,196,.9) 35%,
+      rgba(126,200,227,.8) 50%,
+      rgba(42,127,196,.9) 65%,
+      rgba(42,127,196,.0) 90%,
+      transparent 100%);
+    background-size:200% 100%;
+    animation:header-shimmer 6s ease-in-out infinite;
     z-index:1;
   }
-  .header-divider{width:1px;height:26px;background:rgba(255,255,255,.08);margin:0 20px;flex-shrink:0}
-
-  /* Brand — add monogram */
-  .header-monogram{
-    width:30px;height:30px;border-radius:7px;
-    background:linear-gradient(135deg,rgba(196,151,58,.9),rgba(74,144,217,.7));
-    display:inline-flex;align-items:center;justify-content:center;
-    font-size:9.5px;font-weight:800;color:#fff;letter-spacing:.06em;
-    margin-right:12px;flex-shrink:0;box-shadow:0 2px 10px rgba(196,151,58,.3);
+  /* Soft blue glow below rounded corners */
+  header.app::after{
+    content:'';position:absolute;bottom:-1px;left:10%;right:10%;height:1px;
+    background:linear-gradient(90deg,transparent,rgba(42,127,196,.35) 40%,rgba(42,127,196,.35) 60%,transparent);
   }
-  header.app .brand{line-height:1.2}
+  .header-divider{width:1px;height:28px;background:rgba(255,255,255,.07);margin:0 18px;flex-shrink:0}
+
+  .header-monogram{
+    width:32px;height:32px;border-radius:8px;flex-shrink:0;margin-right:12px;
+    background:linear-gradient(135deg,rgba(42,127,196,.9),rgba(126,200,227,.7));
+    display:inline-flex;align-items:center;justify-content:center;
+    font-size:10px;font-weight:800;color:#fff;letter-spacing:.06em;font-family:'Space Grotesk',sans-serif;
+    box-shadow:0 2px 14px rgba(42,127,196,.4);
+  }
+  header.app .brand{line-height:1.25}
   header.app .brand .firm{
-    color:#fff;font-size:14.5px;font-weight:700;letter-spacing:-.3px;display:block;
-    background:linear-gradient(135deg,#fff 60%,rgba(196,151,58,.8));
-    -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;
+    font-family:'Space Grotesk',sans-serif;
+    font-size:15px;font-weight:700;letter-spacing:-.1px;display:inline-block;
+    color:#fff;white-space:nowrap;
+  }
+  /* Typing cursor */
+  header.app .brand .firm.typing::after{
+    content:'|';margin-left:1px;
+    animation:cursor-blink .7s step-end infinite;
+    color:rgba(126,200,227,.8);font-weight:300;
   }
   header.app .brand .sep{display:none}
-  header.app .brand .tool{color:rgba(255,255,255,.32);font-size:10.5px;font-weight:400;letter-spacing:.04em;display:block;margin-top:2px}
+  header.app .brand .tool{
+    font-family:'Inter',sans-serif;
+    color:rgba(255,255,255,.3);font-size:10px;font-weight:400;letter-spacing:.08em;
+    display:block;margin-top:3px;text-transform:uppercase;
+  }
   header.app .sub{display:none}
-  header.app .fmv-row{font-size:15px;font-weight:700;color:#fff;letter-spacing:-.3px;font-variant-numeric:tabular-nums}
-  header.app .fmv-row span:last-child{color:rgba(255,255,255,.38);font-size:11px;font-weight:400;margin-left:6px;letter-spacing:.02em}
+  header.app .fmv-row{
+    font-family:'Space Grotesk',sans-serif;
+    font-size:15px;font-weight:700;color:#fff;letter-spacing:-.2px;font-variant-numeric:tabular-nums;
+  }
+  header.app .fmv-row span:last-child{
+    font-family:'Inter',sans-serif;
+    color:rgba(255,255,255,.35);font-size:10.5px;font-weight:400;margin-left:7px;letter-spacing:.04em;
+  }
   header.app .right{margin-left:auto;display:flex;gap:6px;align-items:center}
 
   /* Header pills — warm glass style */
@@ -439,10 +483,17 @@
     color:var(--accent);border-color:rgba(42,127,196,.3);
   }
 
-  /* ══ TYPOGRAPHY ══ */
-  h2.tab-title{margin:0 0 4px;font-size:22px;font-weight:800;letter-spacing:-.5px;color:var(--ink)}
-  h2.tab-title small{color:var(--muted);font-weight:400;font-size:12px;margin-left:10px}
+  /* ══ TYPOGRAPHY — Space Grotesk display, Inter body ══ */
+  h2.tab-title{
+    margin:0 0 6px;font-size:24px;font-weight:700;letter-spacing:-.4px;color:var(--ink);
+    font-family:'Space Grotesk',sans-serif;
+  }
+  h2.tab-title small{
+    font-family:'Inter',sans-serif;
+    color:var(--muted);font-weight:400;font-size:12px;margin-left:10px;letter-spacing:.02em;
+  }
   h3{
+    font-family:'Inter',sans-serif;
     font-size:10.5px;margin:24px 0 14px;color:var(--muted);
     letter-spacing:.8px;font-weight:700;text-transform:uppercase;
     display:flex;align-items:center;gap:8px;
@@ -1231,6 +1282,32 @@ function _updateLivePill(){
   if (_liveMode){ p.textContent = "● Live"; p.style.color = "#166534"; p.style.borderColor = "#bbf7d0"; }
   else { p.textContent = "○ Local"; p.style.color = ""; p.style.borderColor = ""; }
 }
+
+// ── Header typing animation ─────────────────────────────────────────────
+function startHeaderTyping(){
+  const el = document.getElementById("firmNameLabel");
+  if(!el) return;
+  const fullText = el.textContent || "North Castle Partners";
+  el.classList.add("typing");
+  el.textContent = "";
+  let i = 0;
+  function tick(){
+    if(i < fullText.length){
+      el.textContent += fullText[i++];
+      setTimeout(tick, 55 + Math.random()*25);
+    } else {
+      setTimeout(()=>el.classList.remove("typing"), 600);
+    }
+  }
+  setTimeout(tick, 200);
+}
+
+// Run on page refresh if already authed (no fresh login)
+window.addEventListener("DOMContentLoaded", function(){
+  if(sessionStorage.getItem("ncp_typed")==="1" && !sessionStorage.getItem("ncp_auth_v3")){
+    // skip — not authed
+  }
+});
 
 function togglePresent(){
   const on = document.body.classList.toggle("present-mode");
