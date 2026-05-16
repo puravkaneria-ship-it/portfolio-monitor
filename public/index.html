@@ -237,27 +237,27 @@
   @import url('https://fonts.googleapis.com/css2?family=Inter:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;1,400&display=swap');
   :root{
     /* Baby blue · Cream · Gold */
-    --bg:#FBF8F1;
+    --bg:#C8E6F8;
     --panel:#FFFFFF;
-    --panel-2:#FDF9EF;
-    --ink:#1A1409;
-    --muted:#7A6F5A;
-    --line:#EDE5D0;
-    --accent:#4A90D9;
-    --accent-light:#EBF4FF;
+    --panel-2:#EDF6FD;
+    --ink:#0A1628;
+    --muted:#4A6580;
+    --line:#C2DDF0;
+    --accent:#2A7FC4;
+    --accent-light:#E6F2FB;
     --gold:#C4973A;
     --gold-light:#FBF2DC;
-    --good:#2D8A6A;
-    --good-bg:#E6F7F1;
-    --warn:#C97A1A;
-    --warn-bg:#FEF5E4;
-    --bad:#C0392B;
-    --bad-bg:#FDECEA;
-    --on-plan:#4A90D9;
-    --on-plan-bg:#EBF4FF;
-    --header:#140F08;
-    --chip:#F3EDD8;
-    --grid-line:#F3EDD8;
+    --good:#1A7A5C;
+    --good-bg:#E2F5EE;
+    --warn:#B86A10;
+    --warn-bg:#FEF3E4;
+    --bad:#B83232;
+    --bad-bg:#FDE8E8;
+    --on-plan:#2A7FC4;
+    --on-plan-bg:#E6F2FB;
+    --header:#06101E;
+    --chip:#D8EEF9;
+    --grid-line:#D8EEF9;
     --shadow-sm:0 1px 2px rgba(26,20,9,.05);
     --shadow:0 1px 3px rgba(26,20,9,.07),0 4px 14px rgba(26,20,9,.04);
     --shadow-md:0 4px 18px rgba(26,20,9,.09),0 1px 4px rgba(26,20,9,.05);
@@ -267,20 +267,28 @@
   }
   *{box-sizing:border-box}
   html,body{margin:0;padding:0;background:var(--bg);color:var(--ink);font:14px/1.6 "Inter",-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale}
-  /* Subtle background: cream base with soft baby-blue + gold orbs */
+  /* Baby blue base with soft white radial glows */
   body::before{
     content:'';position:fixed;inset:0;z-index:0;pointer-events:none;
     background:
-      radial-gradient(ellipse 800px 600px at 10% 20%, rgba(147,197,253,.18) 0%, transparent 70%),
-      radial-gradient(ellipse 600px 500px at 90% 80%, rgba(196,151,58,.12) 0%, transparent 65%),
-      radial-gradient(ellipse 500px 400px at 60% 10%, rgba(147,197,253,.10) 0%, transparent 60%);
+      radial-gradient(ellipse 900px 700px at 5% 15%,  rgba(255,255,255,.55) 0%, transparent 65%),
+      radial-gradient(ellipse 700px 600px at 95% 85%, rgba(255,255,255,.45) 0%, transparent 60%),
+      radial-gradient(ellipse 500px 400px at 55% 5%,  rgba(255,255,255,.35) 0%, transparent 55%),
+      radial-gradient(ellipse 600px 500px at 20% 90%, rgba(255,255,255,.30) 0%, transparent 50%);
   }
-  /* Gold streaks */
+  /* White diagonal streaks */
   body::after{
     content:'';position:fixed;inset:0;z-index:0;pointer-events:none;
     background:
-      linear-gradient(135deg, transparent 30%, rgba(196,151,58,.04) 50%, transparent 70%),
-      linear-gradient(45deg, transparent 20%, rgba(196,151,58,.03) 40%, transparent 60%);
+      repeating-linear-gradient(
+        -58deg,
+        transparent 0px,        transparent 55px,
+        rgba(255,255,255,.22) 55px, rgba(255,255,255,.22) 59px,
+        transparent 59px,       transparent 130px,
+        rgba(255,255,255,.12) 130px, rgba(255,255,255,.12) 132px
+      ),
+      linear-gradient(135deg, rgba(255,255,255,.4) 0%, transparent 35%),
+      linear-gradient(-45deg,  rgba(255,255,255,.3) 5%, transparent 40%);
   }
   header.app,nav.tabs,main{position:relative;z-index:1}
   a{color:var(--accent);text-decoration:none}
@@ -383,10 +391,53 @@
   nav.tabs button.active{color:#fff;border-bottom-color:var(--gold);font-weight:600}
   nav.tabs button.active .num{color:var(--gold)}
 
-  /* ══ LAYOUT ══ */
-  main{padding:28px 36px 80px;max-width:1480px;margin:0 auto}
-  section.tab{display:none}
+  /* ══ HORIZONTAL TABS — hidden, replaced by side nav ══ */
+  nav.tabs{display:none}
+
+  /* ══ LAYOUT — scroll-based, all sections visible ══ */
+  main{padding:28px 56px 80px 36px;max-width:1500px;margin:0 auto}
+  section.tab{display:block;padding-bottom:72px}
+  section.tab+section.tab{
+    border-top:1px solid rgba(42,127,196,.12);
+    padding-top:60px;
+    margin-top:0;
+  }
   section.tab.active{display:block}
+
+  /* ══ SIDE NAV ══ */
+  #sideNav{
+    position:fixed;right:18px;top:50%;transform:translateY(-50%);
+    z-index:50;display:flex;flex-direction:column;align-items:flex-end;gap:14px;
+  }
+  .snav-item{
+    display:flex;align-items:center;gap:8px;cursor:pointer;
+    text-decoration:none;outline:none;
+  }
+  .snav-label{
+    font-size:10.5px;font-weight:600;color:var(--muted);
+    opacity:0;transform:translateX(6px);transition:all .2s;
+    white-space:nowrap;letter-spacing:.02em;
+    background:rgba(255,255,255,.75);
+    backdrop-filter:blur(8px);
+    padding:2px 8px;border-radius:4px;
+    border:1px solid rgba(42,127,196,.15);
+    pointer-events:none;
+  }
+  .snav-dot{
+    width:7px;height:7px;border-radius:50%;flex-shrink:0;
+    background:rgba(42,127,196,.25);border:1.5px solid rgba(42,127,196,.45);
+    transition:all .2s;
+  }
+  #sideNav:hover .snav-label{opacity:1;transform:translateX(0)}
+  .snav-item.active .snav-dot{
+    background:var(--accent);border-color:var(--accent);
+    width:9px;height:9px;
+    box-shadow:0 0 0 3px rgba(42,127,196,.2);
+  }
+  .snav-item.active .snav-label{
+    opacity:1;transform:translateX(0);
+    color:var(--accent);border-color:rgba(42,127,196,.3);
+  }
 
   /* ══ TYPOGRAPHY ══ */
   h2.tab-title{margin:0 0 4px;font-size:22px;font-weight:800;letter-spacing:-.5px;color:var(--ink)}
@@ -562,6 +613,18 @@
   <button data-tab="t6"><span class="num">6</span> Sector Cuts</button>
   <button data-tab="t7"><span class="num">7</span> Data Lab</button>
   <button data-tab="t8"><span class="num">8</span> Settings</button>
+</nav>
+
+<!-- Minimal side dot nav -->
+<nav id="sideNav">
+  <a class="snav-item active" data-target="t1"><span class="snav-label">Overview</span><span class="snav-dot"></span></a>
+  <a class="snav-item" data-target="t2"><span class="snav-label">Leaderboard</span><span class="snav-dot"></span></a>
+  <a class="snav-item" data-target="t3"><span class="snav-label">Companies</span><span class="snav-dot"></span></a>
+  <a class="snav-item" data-target="t4"><span class="snav-label">Value Creation</span><span class="snav-dot"></span></a>
+  <a class="snav-item" data-target="t5"><span class="snav-label">Ops KPIs</span><span class="snav-dot"></span></a>
+  <a class="snav-item" data-target="t6"><span class="snav-label">Sector Cuts</span><span class="snav-dot"></span></a>
+  <a class="snav-item" data-target="t7"><span class="snav-label">Data Lab</span><span class="snav-dot"></span></a>
+  <a class="snav-item" data-target="t8"><span class="snav-label">Settings</span><span class="snav-dot"></span></a>
 </nav>
 
 <main>
@@ -2319,9 +2382,9 @@ function flashHeader(){
 }
 
 function goTab(id){
-  document.querySelectorAll("#tabsNav button").forEach(b=>b.classList.toggle("active", b.dataset.tab===id));
-  document.querySelectorAll("section.tab").forEach(s=>s.classList.toggle("active", s.id===id));
-  window.scrollTo({top:0, behavior:"smooth"});
+  // In scroll mode: just scroll to the section
+  const target = document.getElementById(id);
+  if(target) target.scrollIntoView({behavior:"smooth", block:"start"});
 }
 
 function readCSVText(text){
@@ -2943,12 +3006,34 @@ function refreshAll(){
 }
 
 /* TABS */
-document.getElementById("tabsNav").addEventListener("click", e=>{
-  const b = e.target.closest("button"); if(!b) return;
-  document.querySelectorAll("#tabsNav button").forEach(x=>x.classList.toggle("active", x===b));
-  const id = b.dataset.tab;
-  document.querySelectorAll("section.tab").forEach(s=>s.classList.toggle("active", s.id===id));
+// Side nav click → smooth scroll
+document.querySelectorAll(".snav-item").forEach(item=>{
+  item.addEventListener("click", ()=>{
+    const target = document.getElementById(item.dataset.target);
+    if(target) target.scrollIntoView({behavior:"smooth", block:"start"});
+  });
 });
+
+// Intersection Observer → update active dot as user scrolls
+(function initScrollNav(){
+  const sections = document.querySelectorAll("section.tab");
+  const navItems = document.querySelectorAll(".snav-item");
+
+  function setActive(id){
+    navItems.forEach(n=>{
+      const on = n.dataset.target===id;
+      n.classList.toggle("active", on);
+    });
+  }
+
+  const io = new IntersectionObserver(entries=>{
+    entries.forEach(entry=>{
+      if(entry.isIntersecting) setActive(entry.target.id);
+    });
+  }, { rootMargin:"-20% 0px -65% 0px", threshold:0 });
+
+  sections.forEach(s=>io.observe(s));
+})();
 
 /* drag/drop */
 const dz = document.getElementById("dropZone");
