@@ -855,11 +855,11 @@
 <section id="t7" class="tab">
   <h2 class="tab-title">7 · Data Lab <small>import files, add a portco, sync SharePoint (when connected), export</small></h2>
 
-  <h3><span class="ord">7.1</span>Upload financial data (CSV / XLSX / JSON / PDF)</h3>
+  <h3><span class="ord">7.1</span>Upload financial data — files, screenshots, anything</h3>
   <div class="panel">
     <div id="dropZone" class="drop">
-      <div style="font-size:14px;color:var(--ink);margin-bottom:6px">Drop a file here, or <label style="color:var(--accent);cursor:pointer;text-decoration:underline">choose a file<input id="fileInput" type="file" accept=".csv,.xlsx,.xls,.json,.tsv,.pdf" style="display:none" /></label></div>
-      <div class="small">Accepted: <b>.csv</b>, <b>.xlsx</b>, <b>.json</b>, <b>.pdf</b>. Column names are matched against common variants (e.g. "Company", "Revenue", "EBITDA" all work). PDFs are scanned for keywords like "Revenue", "EBITDA", "Net debt" — review and confirm before save.</div>
+      <div style="font-size:14px;color:var(--ink);margin-bottom:6px">Drop files here (multi-select supported), or <label style="color:var(--accent);cursor:pointer;text-decoration:underline">choose files<input id="fileInput" type="file" multiple accept=".csv,.xlsx,.xls,.json,.tsv,.pdf,.png,.jpg,.jpeg,.webp,.gif,.txt,.md" style="display:none" /></label></div>
+      <div class="small"><b>Structured</b> (instant): <code>.csv</code> <code>.xlsx</code> <code>.json</code> · <b>Text-heavy</b> (regex + Claude fallback): <code>.pdf</code> <code>.txt</code> <code>.md</code> · <b>Visual</b> (Claude vision): <code>.png</code> <code>.jpg</code> <code>.webp</code><br/>Drop board decks, earnings PDFs, screenshots of a slide — when regex can't read it, Claude vision picks it up. Add your Anthropic key in <a href="#" onclick="goTab('t8');return false">Settings → 8.2</a> to enable the AI fallbacks.</div>
     </div>
     <div class="toolbar" style="margin-top:14px">
       <label class="small" style="display:flex;align-items:center;gap:6px;color:var(--muted)"><input type="checkbox" id="importReplace"/>Replace existing data on import</label>
@@ -1544,6 +1544,157 @@ function fundRollup(){
 /* ============================================================
    RENDERERS
    ============================================================ */
+
+/* ── THEME — single source of truth, pulled from CSS vars. ── */
+const THEME = (()=>{
+  const c = getComputedStyle(document.documentElement);
+  const v = (n, fb)=> (c.getPropertyValue(n).trim() || fb);
+  return {
+    ink: v('--ink', '#0A1628'),
+    muted: v('--muted', '#4A6580'),
+    line: v('--line', '#C2DDF0'),
+    grid: v('--grid-line', '#D8EEF9'),
+    accent: v('--accent', '#2A7FC4'),
+    accentLight: v('--accent-light', '#E6F2FB'),
+    gold: v('--gold', '#C4973A'),
+    goldLight: v('--gold-light', '#FBF2DC'),
+    good: v('--good', '#1A7A5C'),
+    warn: v('--warn', '#B86A10'),
+    bad: v('--bad', '#B83232'),
+    panel: v('--panel', '#FFFFFF'),
+    panel2: v('--panel-2', '#EDF6FD'),
+    // Categorical — for unordered sets (sectors, stacks). Monochrome ramp + gold accent.
+    cat: ['#2A7FC4','#C4973A','#1A7A5C','#5F8EBA','#8D6F2A','#3D7AAE','#A6843A','#406B95'],
+    // Sequential — dark→light for ranked data
+    seq: ['#0A1628','#1F3A5F','#2A5180','#3568A1','#4080C2','#5F95CB','#80AAD4','#A3C2DE']
+  };
+})();
+
+function hexA(hex, a){
+  const h = hex.replace('#','');
+  const r = parseInt(h.slice(0,2),16), g=parseInt(h.slice(2,4),16), b=parseInt(h.slice(4,6),16);
+  return `rgba(${r},${g},${b},${a})`;
+}
+// Signed magnitude → diverging fill. Brand-coherent: gold (positive, warm)
+// vs deep ink (negative, cool). No red/green — partner palette discipline.
+function divergingFill(v, scale){
+  if (v == null || isNaN(v)) return hexA(THEME.muted, 0.10);
+  const m = Math.min(1, Math.abs(v)/(scale||1));
+  return hexA(v >= 0 ? THEME.gold : THEME.ink, 0.18 + m*0.55);
+}
+// Rank coloring — higher values → darker sequential ramp.
+function rankFill(values){
+  const nums = values.filter(v=>typeof v==='number' && !isNaN(v));
+  if (!nums.length) return values.map(()=>THEME.accent);
+  const max = Math.max(...nums), min = Math.min(...nums);
+  const span = max - min || 1;
+  return values.map(v=>{
+    if (typeof v!=='number' || isNaN(v)) return THEME.muted;
+    const t = (v - min)/span;
+    const idx = Math.round((1-t) * (THEME.seq.length-1));
+    return THEME.seq[Math.max(0, Math.min(THEME.seq.length-1, idx))];
+  });
+}
+// Money formatter — one place to change "$" / "M" semantics.
+function fmt$M(v, decimals){
+  if (decimals == null) decimals = 1;
+  if (v == null || isNaN(v)) return '—';
+  return '$' + (+v).toLocaleString(undefined, {minimumFractionDigits:decimals, maximumFractionDigits:decimals}) + 'M';
+}
+
+/* ── Global Chart.js defaults — every chart inherits these. ── */
+if (typeof Chart !== 'undefined'){
+  Chart.defaults.font.family = "'Inter', -apple-system, 'Segoe UI', sans-serif";
+  Chart.defaults.font.size = 11.5;
+  Chart.defaults.color = THEME.muted;
+  Chart.defaults.borderColor = THEME.grid;
+  Chart.defaults.animation.duration = 550;
+  Chart.defaults.animation.easing = 'easeOutCubic';
+  // Tooltip — white panel, gold edge, Space Grotesk title.
+  const T = Chart.defaults.plugins.tooltip;
+  T.backgroundColor = THEME.panel;
+  T.borderColor = THEME.gold;
+  T.borderWidth = 1;
+  T.titleColor = THEME.ink;
+  T.bodyColor = THEME.ink;
+  T.titleFont = {weight:'700', size:12, family:"'Space Grotesk', sans-serif"};
+  T.bodyFont = {size:11.5, family:"'Inter', sans-serif"};
+  T.padding = 11;
+  T.cornerRadius = 8;
+  T.boxPadding = 6;
+  T.titleMarginBottom = 6;
+  T.usePointStyle = true;
+  T.boxWidth = 8;
+  T.boxHeight = 8;
+  // Legend
+  const L = Chart.defaults.plugins.legend.labels;
+  L.color = THEME.ink;
+  L.font = {size:11, weight:'500'};
+  L.boxWidth = 10;
+  L.boxHeight = 10;
+  L.padding = 14;
+  L.usePointStyle = true;
+  Chart.defaults.plugins.legend.position = 'bottom';
+  // Scales
+  try { Chart.defaults.scale.grid.color = THEME.grid; } catch(e){}
+  try { Chart.defaults.scale.grid.drawTicks = false; } catch(e){}
+  try { Chart.defaults.scale.ticks.color = THEME.muted; } catch(e){}
+  try { Chart.defaults.scale.ticks.padding = 6; } catch(e){}
+  try { Chart.defaults.scale.ticks.font = {size:10.5}; } catch(e){}
+  try { Chart.defaults.scale.border = Chart.defaults.scale.border || {}; Chart.defaults.scale.border.display = false; } catch(e){}
+}
+
+/* ── Reusable axis configs ── */
+const AXIS = {
+  catX: ()=>({ ticks:{color:THEME.ink, font:{size:10.5, weight:'500'}}, grid:{display:false}, border:{display:false} }),
+  rotX: (rot)=>({ ticks:{color:THEME.ink, maxRotation:(rot||55), minRotation:(rot||55), font:{size:9.5}, autoSkip:false}, grid:{display:false}, border:{display:false} }),
+  valY: (suffix, title)=>({
+    ticks:{color:THEME.muted, font:{size:10.5}, callback:v=>v.toLocaleString()+(suffix||'')},
+    grid:{color:THEME.grid},
+    border:{display:false},
+    title: title ? {display:true, text:title, color:THEME.muted, font:{size:11, weight:'600'}, padding:{bottom:8}} : {display:false}
+  }),
+  pctY: (title)=>({
+    ticks:{color:THEME.muted, font:{size:10.5}, callback:v=>v+'%'},
+    grid:{color:THEME.grid},
+    border:{display:false},
+    title: title ? {display:true, text:title, color:THEME.muted, font:{size:11, weight:'600'}, padding:{bottom:8}} : {display:false}
+  })
+};
+
+/* ── Crosshair plugin — dashed median lines on scatter/bubble for quadrant reads. ── */
+const CrosshairPlugin = {
+  id: 'crosshair',
+  afterDatasetsDraw(chart, _args, opts){
+    if (!opts || (opts.x == null && opts.y == null)) return;
+    const {ctx, chartArea: A, scales} = chart;
+    ctx.save();
+    ctx.strokeStyle = opts.color || hexA(THEME.muted, 0.40);
+    ctx.setLineDash([4,4]);
+    ctx.lineWidth = 1;
+    if (opts.x != null){
+      const x = scales.x.getPixelForValue(opts.x);
+      ctx.beginPath(); ctx.moveTo(x, A.top); ctx.lineTo(x, A.bottom); ctx.stroke();
+    }
+    if (opts.y != null){
+      const y = scales.y.getPixelForValue(opts.y);
+      ctx.beginPath(); ctx.moveTo(A.left, y); ctx.lineTo(A.right, y); ctx.stroke();
+    }
+    if (opts.labels){
+      ctx.setLineDash([]);
+      ctx.fillStyle = hexA(THEME.muted, 0.7);
+      ctx.font = "600 9.5px Inter";
+      const pad = 8;
+      if (opts.labels.tl){ ctx.textAlign='left'; ctx.textBaseline='top'; ctx.fillText(opts.labels.tl, A.left+pad, A.top+pad); }
+      if (opts.labels.tr){ ctx.textAlign='right'; ctx.textBaseline='top'; ctx.fillText(opts.labels.tr, A.right-pad, A.top+pad); }
+      if (opts.labels.bl){ ctx.textAlign='left'; ctx.textBaseline='bottom'; ctx.fillText(opts.labels.bl, A.left+pad, A.bottom-pad); }
+      if (opts.labels.br){ ctx.textAlign='right'; ctx.textBaseline='bottom'; ctx.fillText(opts.labels.br, A.right-pad, A.bottom-pad); }
+    }
+    ctx.restore();
+  }
+};
+if (typeof Chart !== 'undefined' && Chart.register) Chart.register(CrosshairPlugin);
+
 const charts = {};
 function chart(id, cfg){
   if(charts[id]){ charts[id].destroy(); }
@@ -1575,101 +1726,121 @@ function renderKPIs(){
 function renderOverviewCharts(){
   const ps = state.portcos;
 
-  // Sector FMV pie
+  // 1.2 Sector composition — paired doughnuts, shared categorical palette
   const bySectorFMV = {}; const bySectorInv = {};
   ps.forEach(p=>{
     bySectorFMV[p.sector] = (bySectorFMV[p.sector]||0)+p.curValue;
     bySectorInv[p.sector] = (bySectorInv[p.sector]||0)+p.invested;
   });
-  // Grayscale ramp with single gold accent — executive minimal
-  const palette = ["#4A90D9","#C4973A","#2D8A6A","#D97706","#94A3B8","#7EC8E3"];
-
-  chart("chSectorFMV", {
-    type:"doughnut",
-    data:{labels:Object.keys(bySectorFMV),
-      datasets:[{data:Object.values(bySectorFMV).map(v=>+v.toFixed(1)), backgroundColor:palette}]},
-    options:{plugins:{legend:{labels:{color:"#111111"}}}, cutout:"62%"}
+  const doughnutOpts = {
+    cutout:'66%',
+    plugins:{
+      legend:{position:'right', labels:{boxWidth:10, boxHeight:10, padding:10}},
+      tooltip:{callbacks:{label:c=>` ${c.label}: ${fmt$M(c.parsed)}`}}
+    }
+  };
+  chart('chSectorFMV', {
+    type:'doughnut',
+    data:{ labels:Object.keys(bySectorFMV),
+      datasets:[{ data:Object.values(bySectorFMV).map(v=>+v.toFixed(1)),
+        backgroundColor:THEME.cat, borderColor:THEME.panel, borderWidth:2, hoverOffset:6 }] },
+    options: doughnutOpts
   });
-  chart("chSectorInv", {
-    type:"doughnut",
-    data:{labels:Object.keys(bySectorInv),
-      datasets:[{data:Object.values(bySectorInv).map(v=>+v.toFixed(1)), backgroundColor:palette}]},
-    options:{plugins:{legend:{labels:{color:"#111111"}}}, cutout:"62%"}
+  chart('chSectorInv', {
+    type:'doughnut',
+    data:{ labels:Object.keys(bySectorInv),
+      datasets:[{ data:Object.values(bySectorInv).map(v=>+v.toFixed(1)),
+        backgroundColor:THEME.cat, borderColor:THEME.panel, borderWidth:2, hoverOffset:6 }] },
+    options: doughnutOpts
   });
 
-  // Status mix
+  // 1.3 Status mix — polar area in pure brand palette: gold / accent / muted / ink.
+  // Darker = worse, gold = best. No red, no amber, no green.
+  const statusOrder = ['Outperforming','On plan','Underperforming','Distressed'];
+  const statusColor = { 'Outperforming':THEME.gold, 'On plan':THEME.accent, 'Underperforming':THEME.muted, 'Distressed':THEME.ink };
   const stat = {};
-  ps.forEach(p=>{ stat[p.status]=(stat[p.status]||0)+1 });
-  chart("chStatus",{
-    type:"polarArea",
-    data:{labels:Object.keys(stat),
-      datasets:[{data:Object.values(stat),
-        backgroundColor:["#16a34a","#111111","#f59e0b","#dc2626"]}]},
-    options:{plugins:{legend:{labels:{color:"#111111"}}}, scales:{r:{ticks:{color:"#6b7280"}, grid:{color:"#d8e2ee"}, angleLines:{color:"#d8e2ee"}}}}
+  ps.forEach(p=>{ stat[p.status] = (stat[p.status]||0)+1; });
+  const sLabels = statusOrder.filter(s => stat[s]);
+  chart('chStatus', {
+    type:'polarArea',
+    data:{ labels:sLabels, datasets:[{ data:sLabels.map(s=>stat[s]),
+      backgroundColor:sLabels.map(s=>hexA(statusColor[s], 0.55)),
+      borderColor:sLabels.map(s=>statusColor[s]), borderWidth:1.5 }] },
+    options:{ plugins:{ legend:{position:'right'} },
+      scales:{ r:{ ticks:{backdropColor:'transparent', color:THEME.muted}, grid:{color:THEME.grid}, angleLines:{color:THEME.grid} } } }
   });
 
-  // top/bottom contributors by $ value created
+  // 1.4 Top / bottom contributors — horizontal bars, rank-colored vs diverging
   const sorted = [...ps].sort((a,b)=>valueCreatedAbs(b)-valueCreatedAbs(a));
   const top5 = sorted.slice(0,5);
   const bot5 = sorted.slice(-5).reverse();
-  const barOpts = {
-    indexAxis:"y",
-    plugins:{legend:{display:false}, tooltip:{callbacks:{label:c=>"$"+(+c.parsed.x).toLocaleString(undefined,{minimumFractionDigits:1,maximumFractionDigits:1})+"M"}}},
-    scales:{x:{ticks:{color:"#6b7280"}, grid:{color:"#f1f1f1"}}, y:{ticks:{color:"#111111"}, grid:{color:"#f1f1f1"}}}
+  const topVals = top5.map(p=>+valueCreatedAbs(p).toFixed(1));
+  const botVals = bot5.map(p=>+valueCreatedAbs(p).toFixed(1));
+  const hBarOpts = {
+    indexAxis:'y',
+    plugins:{ legend:{display:false}, tooltip:{callbacks:{label:c=>` ${fmt$M(c.parsed.x)}`}} },
+    scales:{ x: AXIS.valY('M'), y: AXIS.catX() }
   };
-  chart("chTop5",{
-    type:"bar",
-    data:{labels:top5.map(p=>p.name), datasets:[{data:top5.map(p=>+valueCreatedAbs(p).toFixed(1)), backgroundColor:"#16a34a"}]},
-    options:barOpts
+  chart('chTop5', {
+    type:'bar',
+    data:{ labels:top5.map(p=>p.name),
+      datasets:[{ data:topVals, backgroundColor:rankFill(topVals), borderRadius:4 }] },
+    options: hBarOpts
   });
-  chart("chBot5",{
-    type:"bar",
-    data:{labels:bot5.map(p=>p.name), datasets:[{data:bot5.map(p=>+valueCreatedAbs(p).toFixed(1)), backgroundColor:bot5.map(p=>valueCreatedAbs(p)<0?"#dc2626":"#f59e0b")}]},
-    options:barOpts
+  chart('chBot5', {
+    type:'bar',
+    data:{ labels:bot5.map(p=>p.name),
+      datasets:[{ data:botVals,
+        // Negative = deep ink (cool, serious); weak positive = desaturated muted blue
+        backgroundColor: botVals.map(v=> v<0 ? hexA(THEME.ink, 0.55) : hexA(THEME.muted, 0.4)),
+        borderRadius:4 }] },
+    options: hBarOpts
   });
 
-  // vintage curve
+  // 1.5 Vintage curve — invested vs FMV per vintage year
   const byVintage = {};
   ps.forEach(p=>{
     const y = new Date(p.vintage).getFullYear();
-    if(!byVintage[y]) byVintage[y]={inv:0,fmv:0,n:0};
+    if(!byVintage[y]) byVintage[y] = {inv:0, fmv:0};
     byVintage[y].inv += p.invested;
     byVintage[y].fmv += p.curValue;
-    byVintage[y].n++;
   });
   const yrs = Object.keys(byVintage).sort();
-  chart("chVintage",{
-    type:"bar",
-    data:{labels:yrs,
-      datasets:[
-        {label:"Invested $M", data:yrs.map(y=>+byVintage[y].inv.toFixed(1)), backgroundColor:"#111111"},
-        {label:"Fair value $M", data:yrs.map(y=>+byVintage[y].fmv.toFixed(1)), backgroundColor:"#16a34a"}
-      ]},
-    options:{plugins:{legend:{labels:{color:"#111111"}}},
-      scales:{x:{ticks:{color:"#6b7280"}, grid:{color:"#f1f1f1"}}, y:{ticks:{color:"#6b7280"}, grid:{color:"#f1f1f1"}}}}
+  chart('chVintage', {
+    type:'bar',
+    data:{ labels:yrs, datasets:[
+      { label:'Invested', data:yrs.map(y=>+byVintage[y].inv.toFixed(1)),
+        backgroundColor:hexA(THEME.muted, 0.55), borderRadius:3 },
+      { label:'Fair value', data:yrs.map(y=>+byVintage[y].fmv.toFixed(1)),
+        backgroundColor:THEME.accent, borderRadius:3 }
+    ]},
+    options:{ plugins:{ tooltip:{callbacks:{label:c=>` ${c.dataset.label}: ${fmt$M(c.parsed.y)}`}} },
+      scales:{ x: AXIS.catX(), y: AXIS.valY('M') } }
   });
 
-  // fund ebitda timeline — sum of histories index-aligned
-  const ebitYears = ["Y-3","Y-2","Y-1","Current"];
-  const fundEbit = [0,0,0,0];
-  const fundRev = [0,0,0,0];
+  // 1.6 Fund EBITDA timeline — gold bars + accent revenue line
+  const ebitYears = ['Y-3','Y-2','Y-1','Current'];
+  const fundEbit = [0,0,0,0], fundRev = [0,0,0,0];
   ps.forEach(p=>{
-    if(p.ebitdaHist && p.ebitdaHist.length===4) p.ebitdaHist.forEach((v,i)=>fundEbit[i]+=v);
-    if(p.revHist && p.revHist.length===4) p.revHist.forEach((v,i)=>fundRev[i]+=v);
+    if (p.ebitdaHist && p.ebitdaHist.length===4) p.ebitdaHist.forEach((v,i)=>fundEbit[i]+=v);
+    if (p.revHist && p.revHist.length===4) p.revHist.forEach((v,i)=>fundRev[i]+=v);
   });
-  chart("chFundEbitda",{
-    type:"bar",
-    data:{labels:ebitYears,
-      datasets:[
-        {type:"line", label:"Revenue $M", data:fundRev.map(v=>+v.toFixed(0)), borderColor:"#111111", backgroundColor:"rgba(74,144,226,.12)", yAxisID:"y1", tension:.3, fill:true},
-        {label:"EBITDA $M", data:fundEbit.map(v=>+v.toFixed(0)), backgroundColor:"#16a34a"}
-      ]},
-    options:{plugins:{legend:{labels:{color:"#111111"}}},
+  chart('chFundEbitda', {
+    type:'bar',
+    data:{ labels:ebitYears, datasets:[
+      { type:'line', label:'Revenue', data:fundRev.map(v=>+v.toFixed(0)),
+        borderColor:THEME.accent, backgroundColor:hexA(THEME.accent, 0.10),
+        yAxisID:'y1', tension:.35, fill:true, borderWidth:2.5,
+        pointBackgroundColor:THEME.accent, pointRadius:3.5, pointHoverRadius:5, order:1 },
+      { label:'EBITDA', data:fundEbit.map(v=>+v.toFixed(0)),
+        backgroundColor:THEME.gold, borderRadius:3, order:2 }
+    ]},
+    options:{ plugins:{ tooltip:{callbacks:{label:c=>` ${c.dataset.label}: ${fmt$M(c.parsed.y, 0)}`}} },
       scales:{
-        x:{ticks:{color:"#6b7280"}, grid:{color:"#f1f1f1"}},
-        y:{position:"left", ticks:{color:"#6b7280"}, grid:{color:"#f1f1f1"}, title:{display:true,text:"EBITDA", color:"#6b7280"}},
-        y1:{position:"right", ticks:{color:"#6b7280"}, grid:{display:false}, title:{display:true,text:"Revenue", color:"#6b7280"}}
-      }}
+        x: AXIS.catX(),
+        y: {...AXIS.valY('M','EBITDA'), position:'left'},
+        y1:{...AXIS.valY('M','Revenue'), position:'right', grid:{display:false}}
+      } }
   });
 }
 
@@ -1808,10 +1979,12 @@ function renderCompanyGrid(){
     const el = document.getElementById("sp_"+p.id);
     if(!el) return;
     new Chart(el.getContext("2d"),{
-      type:"line",
-      data:{labels:["Y-3","Y-2","Y-1","Cur"], datasets:[{data:p.ebitdaHist||[], borderColor:"#16a34a", backgroundColor:"rgba(184,134,11,.20)", tension:.35, fill:true, pointRadius:0}]},
-      options:{plugins:{legend:{display:false}, tooltip:{enabled:false}},
-        scales:{x:{display:false}, y:{display:false}}, elements:{line:{borderWidth:2}}, animation:false}
+      type:'line',
+      data:{ labels:['Y-3','Y-2','Y-1','Cur'],
+        datasets:[{ data:p.ebitdaHist||[], borderColor:THEME.accent,
+          backgroundColor:hexA(THEME.accent, 0.12), tension:.35, fill:true, pointRadius:0, borderWidth:1.8 }] },
+      options:{ plugins:{legend:{display:false}, tooltip:{enabled:false}},
+        scales:{x:{display:false}, y:{display:false}}, animation:false, maintainAspectRatio:false }
     });
   });
 }
@@ -1820,52 +1993,82 @@ function renderCompanyGrid(){
 function renderValueCreation(){
   const ps = state.portcos;
 
-  // Fund bridge components (sum)
+  // Fund bridge components (sum across the portfolio)
   const ebGrowth = ps.reduce((a,p)=>a+ebitdaGrowthBridge(p),0);
   const multExp  = ps.reduce((a,p)=>a+multipleBridge(p),0);
   const debtPay  = ps.reduce((a,p)=>a+debtPaydown(p),0);
   const startEq  = ps.reduce((a,p)=>a+p.invested,0);
   const endEq    = ps.reduce((a,p)=>a+p.curValue,0);
 
-  // Chart 4.1: as waterfall-style stacked bar (start, +EBITDA, +mult, +debt, end)
-  chart("chBridge",{
-    type:"bar",
-    data:{
-      labels:["Invested equity","+ EBITDA growth","+ Multiple expansion","+ Debt paydown","= Current FMV"],
-      datasets:[{
-        data:[+startEq.toFixed(1), +ebGrowth.toFixed(1), +multExp.toFixed(1), +debtPay.toFixed(1), +endEq.toFixed(1)],
-        backgroundColor:["#111111","#16a34a","#737373","#f59e0b","#111111"],
-      }]
-    },
-    options:{plugins:{legend:{display:false}, tooltip:{callbacks:{label:c=>"$"+(+c.parsed.y).toLocaleString(undefined,{minimumFractionDigits:1,maximumFractionDigits:1})+"M"}}},
-      scales:{x:{ticks:{color:"#111111"}, grid:{color:"#f1f1f1"}}, y:{ticks:{color:"#6b7280"}, grid:{color:"#f1f1f1"}, title:{display:true,text:"", color:"#6b7280"}}}}
+  // 4.1 True waterfall — floating bars that stack on each cumulative total.
+  // Each bar's [bottom, top] tells you where the running fund value lands after that contribution.
+  const s1 = startEq;
+  const s2 = s1 + ebGrowth;
+  const s3 = s2 + multExp;
+  const s4 = s3 + debtPay;
+  const wfLabels = ['Invested equity','+ EBITDA growth','+ Multiple expansion','+ Debt paydown','= Current FMV'];
+  const wfRanges = [
+    [0, s1],
+    ebGrowth >= 0 ? [s1, s2] : [s2, s1],
+    multExp  >= 0 ? [s2, s3] : [s3, s2],
+    debtPay  >= 0 ? [s3, s4] : [s4, s3],
+    [0, endEq]
+  ];
+  const wfColors = [
+    THEME.accent,
+    ebGrowth >= 0 ? THEME.gold              : hexA(THEME.ink, 0.55),
+    multExp  >= 0 ? hexA(THEME.gold,  0.75) : hexA(THEME.ink, 0.55),
+    debtPay  >= 0 ? hexA(THEME.accent,0.55) : hexA(THEME.ink, 0.55),
+    THEME.ink
+  ];
+  const wfContribs = [startEq, ebGrowth, multExp, debtPay, endEq];
+  chart('chBridge', {
+    type:'bar',
+    data:{ labels: wfLabels,
+      datasets:[{ data: wfRanges, backgroundColor: wfColors, borderRadius:4, borderSkipped:false }] },
+    options:{ plugins:{ legend:{display:false},
+      tooltip:{ callbacks:{
+        title:c=>c[0].label,
+        label:c=>{
+          const idx = c.dataIndex;
+          if (idx===0 || idx===4) return ` Total: ${fmt$M(wfContribs[idx])}`;
+          const v = wfContribs[idx];
+          return ` ${v>=0?'+':''}${fmt$M(v)} → ${fmt$M(Math.max(...c.parsed.y))}`;
+        }
+      } } },
+      scales:{ x: AXIS.catX(), y: AXIS.valY('M','Equity value') } }
   });
 
-  // 4.2: per-portco stacked bar
-  const labels = ps.map(p=>p.name);
-  chart("chBridgeStack",{
-    type:"bar",
-    data:{labels,
-      datasets:[
-        {label:"EBITDA growth", data:ps.map(p=>+ebitdaGrowthBridge(p).toFixed(1)), backgroundColor:"#16a34a"},
-        {label:"Multiple expansion", data:ps.map(p=>+multipleBridge(p).toFixed(1)), backgroundColor:"#737373"},
-        {label:"Debt paydown", data:ps.map(p=>+debtPaydown(p).toFixed(1)), backgroundColor:"#f59e0b"}
-      ]},
-    options:{plugins:{legend:{labels:{color:"#111111"}}, tooltip:{callbacks:{label:c=>c.dataset.label+": $"+(+c.parsed.y).toLocaleString(undefined,{minimumFractionDigits:1,maximumFractionDigits:1})+"M"}}},
-      scales:{x:{stacked:true, ticks:{color:"#111111", maxRotation:90, minRotation:60, font:{size:10}}, grid:{display:false}},
-        y:{stacked:true, ticks:{color:"#6b7280"}, grid:{color:"#f1f1f1"}, title:{display:true,text:"Value added", color:"#6b7280"}}}}
+  // 4.2 Per-portco stack — sources of value, sorted by total contribution
+  const pSorted = [...ps].sort((a,b)=>(ebitdaGrowthBridge(b)+multipleBridge(b)+debtPaydown(b)) - (ebitdaGrowthBridge(a)+multipleBridge(a)+debtPaydown(a)));
+  const pNames = pSorted.map(p=>p.name);
+  chart('chBridgeStack', {
+    type:'bar',
+    data:{ labels:pNames, datasets:[
+      { label:'EBITDA growth',      data:pSorted.map(p=>+ebitdaGrowthBridge(p).toFixed(1)),
+        backgroundColor:THEME.gold, borderRadius:2 },
+      { label:'Multiple expansion', data:pSorted.map(p=>+multipleBridge(p).toFixed(1)),
+        backgroundColor:hexA(THEME.accent, 0.55), borderRadius:2 },
+      { label:'Debt paydown',       data:pSorted.map(p=>+debtPaydown(p).toFixed(1)),
+        backgroundColor:THEME.accent, borderRadius:2 }
+    ]},
+    options:{ plugins:{ tooltip:{callbacks:{label:c=>` ${c.dataset.label}: ${fmt$M(c.parsed.y)}`}} },
+      scales:{ x:{...AXIS.rotX(60), stacked:true}, y:{...AXIS.valY('M','Value added'), stacked:true} } }
   });
 
-  // 4.3 marginal benefit
-  chart("chMargBenefit",{
-    type:"bar",
-    data:{labels,
-      datasets:[{label:"Marginal benefit ($M EBITDA vs sector baseline)",
-        data:ps.map(p=>+marginalBenefit(p).toFixed(2)),
-        backgroundColor:ps.map(p=>marginalBenefit(p)>=0?"#16a34a":"#dc2626")}]},
-    options:{plugins:{legend:{labels:{color:"#111111"}}, tooltip:{callbacks:{label:c=>"$"+(+c.parsed.y).toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2})+"M vs sector"}}},
-      scales:{x:{ticks:{color:"#111111", maxRotation:90, minRotation:60, font:{size:10}}, grid:{display:false}},
-        y:{ticks:{color:"#6b7280"}, grid:{color:"#f1f1f1"}, title:{display:true,text:"", color:"#6b7280"}}}}
+  // 4.3 Marginal benefit vs sector baseline — diverging fill, intensity scaled to max |v|
+  const mb = ps.map(p=>+marginalBenefit(p).toFixed(2));
+  const mbScale = Math.max(...mb.map(Math.abs), 1);
+  chart('chMargBenefit', {
+    type:'bar',
+    data:{ labels:ps.map(p=>p.name),
+      datasets:[{ data:mb,
+        backgroundColor: mb.map(v=> divergingFill(v, mbScale)),
+        borderColor:     mb.map(v=> v>=0 ? THEME.gold : THEME.ink),
+        borderWidth:1, borderRadius:3 }] },
+    options:{ plugins:{ legend:{display:false},
+      tooltip:{callbacks:{label:c=>` ${c.parsed.y>=0?'+':''}${fmt$M(c.parsed.y, 2)} vs sector baseline`}} },
+      scales:{ x: AXIS.rotX(60), y: AXIS.valY('M','vs sector EBITDA') } }
   });
 
   // 4.4 detail table
@@ -1893,8 +2096,8 @@ function renderValueCreation(){
 function renderOpsKPIs(){
   const ps = state.portcos;
 
-  // heatmap rows: portcos, cols: margin Δ bps, rev Δ %, ebitda Δ %, headcount Δ %, NRR (if SaaS), CAC payback
-  const cols = ["Margin Δ (bps)","Revenue Δ%","EBITDA Δ%","Headcount Δ%","NRR (SaaS)","CAC payback (mo)"];
+  // 5.1 Operational heatmap — diverging fill per column, neutral midpoint per metric
+  const cols = ['Margin Δ (bps)','Revenue Δ%','EBITDA Δ%','Headcount Δ%','NRR (SaaS)','CAC payback (mo)'];
   const rows = ps.map(p=>{
     const mDelta = (ebitdaMargin(p) - (p.entryEbitda/p.entryRev))*10000;
     const rD = (p.curRev/p.entryRev - 1)*100;
@@ -1902,105 +2105,117 @@ function renderOpsKPIs(){
     const hD = (p.hcCur/p.hcEntry - 1)*100;
     return {name:p.name, sector:p.sector, vals:[mDelta, rD, eD, hD, p.nrr, p.cacPayback]};
   });
-  // color scale per column: good is positive (or low for CAC)
-  function color(col, v){
-    if(v==null||isNaN(v)) return "#2a3461";
-    const pos = (col===5) ? (v<24?1:-1) : (v>=0?1:-1);
-    if(col===4 && v!=null){ return v>=110?"#2D8A6A":v>=100?"#C4973A":v>=95?"#D97706":"#C0392B"; }
-    if(col===5 && v!=null){ return v<=18?"#16a34a":v<=24?"#f59e0b":"#dc2626"; }
-    const mag = Math.min(1, Math.abs(v)/(col===0?500:60));
-    if(pos>0){ return `rgba(123,227,196,${0.25+mag*0.6})`; }
-    return `rgba(255,107,138,${0.25+mag*0.6})`;
+  function heatColor(colIdx, v){
+    if (v == null || isNaN(v)) return hexA(THEME.muted, 0.08);
+    if (colIdx === 4) return divergingFill(v - 100, 15);    // NRR — 100 is neutral
+    if (colIdx === 5) return divergingFill(24 - v, 18);     // CAC payback — lower is better; 24mo is neutral
+    return divergingFill(v, colIdx===0 ? 500 : 60);         // bps for margin, % for others
   }
-  const hm = `<table><thead><tr><th>Company</th><th>Sector</th>${cols.map(c=>`<th style="text-align:center">${c}</th>`).join("")}</tr></thead>
+  const hm = `<table class="heatmap"><thead><tr><th>Company</th><th>Sector</th>${cols.map(c=>`<th style="text-align:center">${c}</th>`).join('')}</tr></thead>
     <tbody>${rows.map(r=>`<tr>
       <td class="lbl"><b>${r.name}</b></td><td class="lbl small">${r.sector}</td>
       ${r.vals.map((v,i)=>{
-        let txt = v==null?"—":(i===0?(v.toFixed(0)+"bps"):i===4?v.toFixed(0):i===5?v.toFixed(0):v.toFixed(1)+"%");
-        return `<td style="background:${color(i,v)}">${txt}</td>`;
-      }).join("")}
-    </tr>`).join("")}</tbody></table>`;
-  document.getElementById("heatmapWrap").innerHTML = hm;
+        const txt = v==null ? '—'
+          : i===0 ? v.toFixed(0)+' bps'
+          : i===4 ? v.toFixed(0)
+          : i===5 ? v.toFixed(0)+' mo'
+                  : v.toFixed(1)+'%';
+        return `<td style="background:${heatColor(i,v)};color:${THEME.ink};font-variant-numeric:tabular-nums">${txt}</td>`;
+      }).join('')}
+    </tr>`).join('')}</tbody></table>`;
+  document.getElementById('heatmapWrap').innerHTML = hm;
 
-  // 5.2 margin entry vs current
-  chart("chMargin",{
-    type:"bar",
-    data:{labels:ps.map(p=>p.name),
-      datasets:[
-        {label:"Entry margin", data:ps.map(p=>+((p.entryEbitda/p.entryRev)*100).toFixed(1)), backgroundColor:"#111111"},
-        {label:"Current margin", data:ps.map(p=>+((p.curEbitda/p.curRev)*100).toFixed(1)), backgroundColor:"#16a34a"}
-      ]},
-    options:{plugins:{legend:{labels:{color:"#111111"}}},
-      scales:{x:{ticks:{color:"#111111", maxRotation:90, minRotation:60, font:{size:10}}, grid:{display:false}},
-        y:{ticks:{color:"#6b7280", callback:v=>v+"%"}, grid:{color:"#f1f1f1"}}}}
+  // 5.2 Margin entry → current — paired bars
+  chart('chMargin', {
+    type:'bar',
+    data:{ labels:ps.map(p=>p.name), datasets:[
+      { label:'Entry margin', data:ps.map(p=>+((p.entryEbitda/p.entryRev)*100).toFixed(1)),
+        backgroundColor:hexA(THEME.muted, 0.55), borderRadius:3 },
+      { label:'Current margin', data:ps.map(p=>+((p.curEbitda/p.curRev)*100).toFixed(1)),
+        backgroundColor:THEME.gold, borderRadius:3 }
+    ]},
+    options:{ plugins:{ tooltip:{callbacks:{label:c=>` ${c.dataset.label}: ${c.parsed.y.toFixed(1)}%`}} },
+      scales:{ x: AXIS.rotX(60), y: AXIS.pctY('EBITDA margin') } }
   });
 
-  // 5.3 headcount top 10 growth
+  // 5.3 Headcount top 10 — entry vs current
   const ranked = [...ps].sort((a,b)=>(b.hcCur/b.hcEntry)-(a.hcCur/a.hcEntry)).slice(0,10);
-  chart("chHeadcount",{
-    type:"bar",
-    data:{labels:ranked.map(p=>p.name),
-      datasets:[
-        {label:"Entry HC", data:ranked.map(p=>p.hcEntry), backgroundColor:"#111111"},
-        {label:"Current HC", data:ranked.map(p=>p.hcCur), backgroundColor:"#16a34a"}
-      ]},
-    options:{plugins:{legend:{labels:{color:"#111111"}}},
-      scales:{x:{ticks:{color:"#111111", maxRotation:60, minRotation:45, font:{size:10}}, grid:{display:false}},
-        y:{ticks:{color:"#6b7280"}, grid:{color:"#f1f1f1"}}}}
+  chart('chHeadcount', {
+    type:'bar',
+    data:{ labels:ranked.map(p=>p.name), datasets:[
+      { label:'Entry HC',   data:ranked.map(p=>p.hcEntry), backgroundColor:hexA(THEME.muted, 0.55), borderRadius:3 },
+      { label:'Current HC', data:ranked.map(p=>p.hcCur),   backgroundColor:THEME.accent, borderRadius:3 }
+    ]},
+    options:{ plugins:{ tooltip:{callbacks:{label:c=>` ${c.dataset.label}: ${c.parsed.y.toLocaleString()}`}} },
+      scales:{ x: AXIS.rotX(50), y: AXIS.valY('','Headcount') } }
   });
 
-  // 5.4 SaaS bubble: NRR vs CAC payback, bubble size ∝ √revenue, one dataset per portco for clean labels
+  // 5.4 SaaS quadrant — NRR vs CAC payback with median crosshair
   const saas = ps.filter(p=>p.nrr!=null && p.cacPayback!=null);
-  const allSaaS = ps.filter(p=>p.sector==="B2B Software" || p.nrr!=null);
-  const saasCanvas = document.getElementById("chSaaS");
-  // Diagnostic: replace canvas with a helpful message if no plottable data
+  const allSaaS = ps.filter(p=>p.sector==='B2B Software' || p.nrr!=null);
+  const saasCanvas = document.getElementById('chSaaS');
   const parent = saasCanvas.parentElement;
-  let diag = document.getElementById("chSaaSDiag");
+  let diag = document.getElementById('chSaaSDiag');
   if (!saas.length){
-    if (charts["chSaaS"]) { charts["chSaaS"].destroy(); delete charts["chSaaS"]; }
-    saasCanvas.style.display = "none";
+    if (charts['chSaaS']) { charts['chSaaS'].destroy(); delete charts['chSaaS']; }
+    saasCanvas.style.display = 'none';
     if (!diag){
-      diag = document.createElement("div");
-      diag.id = "chSaaSDiag";
-      diag.style.cssText = "display:flex;align-items:center;justify-content:center;height:340px;color:var(--muted);text-align:center;padding:20px;flex-direction:column;gap:6px";
+      diag = document.createElement('div');
+      diag.id = 'chSaaSDiag';
+      diag.style.cssText = `display:flex;align-items:center;justify-content:center;height:340px;color:${THEME.muted};text-align:center;padding:20px;flex-direction:column;gap:6px`;
       parent.appendChild(diag);
     }
-    diag.style.display = "flex";
+    diag.style.display = 'flex';
     if (allSaaS.length){
       diag.innerHTML = `
-        <div style="font-weight:600;color:var(--ink)">Nothing to plot yet</div>
+        <div style="font-weight:600;color:${THEME.ink}">Nothing to plot yet</div>
         <div class="small">You have <b>${allSaaS.length}</b> software portfolio companies, but none have both <b>NRR</b> and <b>CAC payback</b> filled in.</div>
         <div class="small">Open any company in <b>Tab 3</b> and add those two fields, or upload a file with columns <code>nrr</code> and <code>cacPayback</code>.</div>`;
     } else {
       diag.innerHTML = `
-        <div style="font-weight:600;color:var(--ink)">No software portfolio companies yet</div>
+        <div style="font-weight:600;color:${THEME.ink}">No software portfolio companies yet</div>
         <div class="small">This view shows retention-vs-payback for B2B software companies. Add one in <b>Tab 7 — Data Lab</b>.</div>`;
     }
   } else {
-    saasCanvas.style.display = "";
-    if (diag) diag.style.display = "none";
-    chart("chSaaS",{
-      type:"bubble",
-      data:{datasets:[{
-        label: "Portfolio companies",
-        data: saas.map(p=>({x: p.nrr, y: p.cacPayback, r: Math.max(10, Math.min(28, Math.sqrt(p.curRev||1)*1.8)), name: p.name, rev: p.curRev||0})),
-        backgroundColor: saas.map(p => p.nrr>=110 ? "rgba(184,134,11,.30)" : "rgba(17,17,17,.18)"),
-        borderColor: saas.map(p => p.nrr>=110 ? "#C4973A" : "#4A90D9"),
-        borderWidth: 1.2
+    saasCanvas.style.display = '';
+    if (diag) diag.style.display = 'none';
+    // Medians for the quadrant crosshair
+    const median = a => { const s=[...a].sort((x,y)=>x-y); return s.length%2 ? s[(s.length-1)/2] : (s[s.length/2-1]+s[s.length/2])/2; };
+    const medNRR = median(saas.map(p=>p.nrr));
+    const medCAC = median(saas.map(p=>p.cacPayback));
+    // Quadrant: best = high NRR (right) + low CAC (bottom), worst = low NRR + high CAC
+    const quadrant = p =>
+      (p.nrr >= medNRR && p.cacPayback <= medCAC) ? 'best'
+      : (p.nrr <  medNRR && p.cacPayback >  medCAC) ? 'worst'
+      : 'mixed';
+    const qFill   = { best: hexA(THEME.gold, 0.45), worst: hexA(THEME.ink, 0.32), mixed: hexA(THEME.accent, 0.30) };
+    const qStroke = { best: THEME.gold,             worst: THEME.ink,             mixed: THEME.accent };
+    chart('chSaaS', {
+      type:'bubble',
+      data:{ datasets:[{
+        label:'Portfolio companies',
+        data: saas.map(p=>({ x:p.nrr, y:p.cacPayback,
+          r: Math.max(8, Math.min(26, Math.sqrt(p.curRev||1)*1.7)),
+          name:p.name, rev:p.curRev||0 })),
+        backgroundColor: saas.map(p => qFill[quadrant(p)]),
+        borderColor:     saas.map(p => qStroke[quadrant(p)]),
+        borderWidth: 1.4
       }]},
       options:{
         responsive:true, maintainAspectRatio:false,
         plugins:{
           legend:{display:false},
           tooltip:{callbacks:{
-            title:c=>c[0].raw.name,
-            label:c=>[`NRR: ${c.raw.x}%`, `CAC payback: ${c.raw.y} months`, `Revenue: $${(+c.raw.rev).toFixed(1)}M`]
+            title: c=>c[0].raw.name,
+            label: c=>[` NRR: ${c.raw.x}%`, ` CAC payback: ${c.raw.y} months`, ` Revenue: ${fmt$M(c.raw.rev)}`]
           }},
-          title:{display:false}
+          crosshair:{ x: medNRR, y: medCAC,
+            labels:{ tl:'Watchlist', tr:'Sticky · slow payback',
+                     bl:'Quick payback · weak retention', br:'Best quadrant' } }
         },
         scales:{
-          x:{title:{display:true,text:"NRR", color:"#6b7280", font:{size:11}}, ticks:{color:"#6b7280", callback:v=>v+"%"}, grid:{color:"#f1f1f1"}, border:{display:false}},
-          y:{title:{display:true,text:"CAC payback (months)", color:"#6b7280", font:{size:11}}, ticks:{color:"#6b7280"}, grid:{color:"#f1f1f1"}, suggestedMin:0, border:{display:false}}
+          x:{ ...AXIS.pctY(), title:{display:true, text:'Net Revenue Retention', color:THEME.muted, font:{size:11, weight:'600'}, padding:{top:8}} },
+          y:{ ...AXIS.valY(' mo','CAC payback'), suggestedMin:0 }
         }
       }
     });
@@ -2042,32 +2257,52 @@ function renderSectors(){
     <td class="num ${r.marginDelta>=0?'pos':'neg'}">${r.marginDelta.toFixed(0)} bps</td>
   </tr>`).join("");
 
-  chart("chSecMOIC",{
-    type:"bar",
-    data:{labels:rows.map(r=>r.sec),
-      datasets:[{data:rows.map(r=>+r.moicW.toFixed(2)),
-        backgroundColor:rows.map(r=>r.moicW>=2?"#16a34a":r.moicW>=1?"#111111":"#dc2626")}]},
-    options:{plugins:{legend:{display:false}},
-      scales:{x:{ticks:{color:"#111111"}, grid:{display:false}},
-        y:{ticks:{color:"#6b7280", callback:v=>v+"x"}, grid:{color:"#f1f1f1"}}}}
+  // 6.2 MOIC by sector — rank-colored bars (best sector = darkest)
+  const moicVals = rows.map(r=>+r.moicW.toFixed(2));
+  chart('chSecMOIC', {
+    type:'bar',
+    data:{ labels:rows.map(r=>r.sec),
+      datasets:[{ data:moicVals, backgroundColor:rankFill(moicVals), borderRadius:4 }] },
+    options:{ plugins:{ legend:{display:false},
+      tooltip:{callbacks:{label:c=>` ${c.parsed.y.toFixed(2)}x · weighted by invested`}} },
+      scales:{ x: AXIS.catX(), y: AXIS.valY('x','Weighted MOIC') } }
   });
 
-  // scatter entry vs current multiple
-  chart("chMultScatter",{
-    type:"scatter",
-    data:{datasets:[{
-      data:ps.map(p=>({x:p.entryMult, y:p.curMult, name:p.name, sector:p.sector, ev:p.curEV})),
-      pointRadius:ps.map(p=>Math.max(5, Math.min(22, p.curEV/30))),
-      pointBackgroundColor:ps.map(p=>{
-        const i = SECTORS.indexOf(p.sector);
-        return ["#111111","#16a34a","#f59e0b","#dc2626","#737373"][i] || "#111111";
-      })
-    }]},
-    options:{plugins:{legend:{display:false},
-      tooltip:{callbacks:{label:c=>`${c.raw.name}: ${c.raw.x.toFixed(1)}x → ${c.raw.y.toFixed(1)}x (EV $${c.raw.ev.toFixed(0)}M)`}}},
+  // 6.3 Entry → current multiple scatter — one dataset per sector for a real legend,
+  // 1:1 reference line for multiple expansion vs compression read.
+  const sectorColor = {};
+  SECTORS.forEach((s,i)=>{ sectorColor[s] = THEME.cat[i % THEME.cat.length]; });
+  const activeSectors = SECTORS.filter(s => ps.some(p => p.sector === s));
+  const allMults = ps.flatMap(p => [p.entryMult, p.curMult]).filter(v => v != null);
+  const mMin = Math.max(0, Math.floor(Math.min(...allMults) - 1));
+  const mMax = Math.ceil(Math.max(...allMults) + 1);
+  chart('chMultScatter', {
+    type:'scatter',
+    data:{ datasets: [
+      ...activeSectors.map(s => ({
+        label: s,
+        data: ps.filter(p=>p.sector===s).map(p => ({x:p.entryMult, y:p.curMult, name:p.name, ev:p.curEV})),
+        backgroundColor: hexA(sectorColor[s], 0.55),
+        borderColor: sectorColor[s],
+        borderWidth: 1.3,
+        pointRadius: ps.filter(p=>p.sector===s).map(p => Math.max(5, Math.min(20, (p.curEV||100)/30))),
+        pointHoverRadius: 10
+      })),
+      // 1:1 reference line — anything above = multiple expansion, below = compression
+      {
+        type:'line', label:'1:1 (no change)',
+        data: [{x:mMin, y:mMin}, {x:mMax, y:mMax}],
+        borderColor: hexA(THEME.muted, 0.45),
+        borderDash: [5,4], borderWidth: 1, pointRadius: 0, fill: false, order: 0
+      }
+    ]},
+    options:{ plugins:{ legend:{position:'bottom', labels:{filter:i=>i.text!=='1:1 (no change)'}},
+      tooltip:{callbacks:{label:c=>c.raw.name ? ` ${c.raw.name}: ${c.raw.x.toFixed(1)}x → ${c.raw.y.toFixed(1)}x · EV ${fmt$M(c.raw.ev, 0)}` : null,
+        filter: c => !!c.raw.name}} },
       scales:{
-        x:{title:{display:true,text:"Entry multiple", color:"#6b7280"}, ticks:{color:"#6b7280"}, grid:{color:"#f1f1f1"}},
-        y:{title:{display:true,text:"Current multiple", color:"#6b7280"}, ticks:{color:"#6b7280"}, grid:{color:"#f1f1f1"}}}}
+        x: {...AXIS.valY('x','Entry multiple'), min:mMin, max:mMax},
+        y: {...AXIS.valY('x','Current multiple'), min:mMin, max:mMax}
+      } }
   });
 }
 
@@ -2123,29 +2358,36 @@ const dlg = {
     renderKeyNotes(p);
     document.getElementById("companyModal").classList.add("open");
 
-    // PL chart
+    // P&L history + per-portco value bridge
     setTimeout(()=>{
-      new Chart(document.getElementById("mc_pl").getContext("2d"),{
-        type:"bar",
-        data:{labels:["Y-3","Y-2","Y-1","Current"],
-          datasets:[
-            {type:"line", label:"Revenue $M", data:p.revHist||[], borderColor:"#111111", backgroundColor:"rgba(74,144,226,.12)", fill:true, tension:.3, yAxisID:"y1"},
-            {label:"EBITDA $M", data:p.ebitdaHist||[], backgroundColor:"#16a34a"}
-          ]},
-        options:{plugins:{legend:{labels:{color:"#111111"}}},
-          scales:{x:{ticks:{color:"#111111"}, grid:{color:"#f1f1f1"}},
-            y:{ticks:{color:"#6b7280"}, grid:{color:"#f1f1f1"}, title:{display:true,text:"EBITDA", color:"#6b7280"}},
-            y1:{position:"right", ticks:{color:"#6b7280"}, grid:{display:false}, title:{display:true,text:"Revenue", color:"#6b7280"}}}}
+      new Chart(document.getElementById('mc_pl').getContext('2d'), {
+        type:'bar',
+        data:{ labels:['Y-3','Y-2','Y-1','Current'], datasets:[
+          { type:'line', label:'Revenue', data:p.revHist||[],
+            borderColor:THEME.accent, backgroundColor:hexA(THEME.accent, 0.10),
+            fill:true, tension:.35, borderWidth:2.5,
+            pointBackgroundColor:THEME.accent, pointRadius:3.5, yAxisID:'y1', order:1 },
+          { label:'EBITDA', data:p.ebitdaHist||[], backgroundColor:THEME.gold, borderRadius:3, order:2 }
+        ]},
+        options:{ plugins:{ tooltip:{callbacks:{label:c=>` ${c.dataset.label}: ${fmt$M(c.parsed.y)}`}} },
+          scales:{
+            x: AXIS.catX(),
+            y: {...AXIS.valY('M','EBITDA'), position:'left'},
+            y1:{...AXIS.valY('M','Revenue'), position:'right', grid:{display:false}}
+          } }
       });
-      new Chart(document.getElementById("mc_br").getContext("2d"),{
-        type:"bar",
-        data:{labels:["EBITDA growth","Multiple expansion","Debt paydown"],
-          datasets:[{data:[+ebitdaGrowthBridge(p).toFixed(1),+multipleBridge(p).toFixed(1),+debtPaydown(p).toFixed(1)],
-            backgroundColor:["#16a34a","#737373","#f59e0b"]}]},
-        options:{plugins:{legend:{display:false},
-          tooltip:{callbacks:{label:c=>"$"+(+c.parsed.y).toLocaleString(undefined,{minimumFractionDigits:1,maximumFractionDigits:1})+"M"}}},
-          scales:{x:{ticks:{color:"#111111"}, grid:{display:false}},
-            y:{ticks:{color:"#6b7280"}, grid:{color:"#f1f1f1"}, title:{display:true,text:"Value added", color:"#6b7280"}}}}
+
+      const brVals = [+ebitdaGrowthBridge(p).toFixed(1), +multipleBridge(p).toFixed(1), +debtPaydown(p).toFixed(1)];
+      const brDrivers = [THEME.gold, hexA(THEME.accent, 0.55), THEME.accent];
+      new Chart(document.getElementById('mc_br').getContext('2d'), {
+        type:'bar',
+        data:{ labels:['EBITDA growth','Multiple expansion','Debt paydown'],
+          datasets:[{ data: brVals,
+            backgroundColor: brVals.map((v,i) => v>=0 ? brDrivers[i] : hexA(THEME.ink, 0.55)),
+            borderRadius:3 }] },
+        options:{ plugins:{ legend:{display:false},
+          tooltip:{callbacks:{label:c=>` ${c.parsed.y>=0?'+':''}${fmt$M(c.parsed.y)}`}} },
+          scales:{ x: AXIS.catX(), y: AXIS.valY('M','Value added') } }
       });
     },20);
   },
@@ -2487,14 +2729,23 @@ function readJSONText(text){
   }catch(e){ toast("JSON parse error") }
 }
 
-function handleFile(file){
+async function handleFile(file){
   const ext = (file.name.split(".").pop()||"").toLowerCase();
-  const reader = new FileReader();
-  if(ext==="csv"||ext==="tsv"){ reader.onload=e=>readCSVText(e.target.result); reader.readAsText(file); }
-  else if(ext==="xlsx"||ext==="xls"){ reader.onload=e=>readXLSXArrayBuffer(e.target.result); reader.readAsArrayBuffer(file); }
-  else if(ext==="json"){ reader.onload=e=>readJSONText(e.target.result); reader.readAsText(file); }
-  else if(ext==="pdf"){ reader.onload=e=>ingestPDF(e.target.result, file.name); reader.readAsArrayBuffer(file); }
-  else toast("Unsupported file type");
+  if (ext==="csv"||ext==="tsv"){
+    const text = await file.text(); readCSVText(text);
+  } else if (ext==="xlsx"||ext==="xls"){
+    const ab = await file.arrayBuffer(); readXLSXArrayBuffer(ab);
+  } else if (ext==="json"){
+    const text = await file.text(); readJSONText(text);
+  } else if (ext==="pdf"){
+    const ab = await file.arrayBuffer(); await ingestPDF(ab, file.name);
+  } else if (["png","jpg","jpeg","webp","gif"].includes(ext)){
+    await ingestImage(file);
+  } else if (["txt","md"].includes(ext)){
+    await ingestText(file);
+  } else {
+    toast("Unsupported file type: ." + ext);
+  }
 }
 
 function clearAllPortcos(){
@@ -2800,10 +3051,153 @@ ${JSON.stringify(ctx, null, 2)}`;
 }
 
 /* ============================================================
+   CLAUDE EXTRACT — universal vision / text fallback for ingestion
+   Used by image uploads, text-file uploads, and PDF fallback when
+   the regex parser comes up empty. Reuses the Anthropic key stored
+   in Settings → 8.2 (same one as generateClaudeNotes).
+   ============================================================ */
+const EXTRACT_PROMPT = `You are extracting structured financial data from a portfolio-company document (board deck, earnings report, financial statement, screenshot, or memo).
+
+Return ONLY a valid JSON object — no prose, no markdown fences, no commentary. Omit any field you cannot confidently extract.
+
+Schema (omit fields you can't find — partial data is fine):
+{
+  "name": "company legal name",
+  "sector": "Healthcare Services" | "Consumer Brands" | "B2B Software" | "Industrial Services" | "Financial Services",
+  "vintage": "YYYY-MM-DD",
+  "invested": number,
+  "entryRev": number, "entryEbitda": number, "entryDebt": number, "entryMult": number, "entryGM": number,
+  "curRev": number,   "curEbitda": number,   "curDebt": number,   "curMult": number,   "curGM": number,
+  "hcEntry": number,  "hcCur": number,
+  "nrr": number, "cacPayback": number,
+  "notes": "1-2 sentence summary if useful"
+}
+
+Rules:
+- All currency values in millions of USD. Convert "$45,200,000" to 45.2.
+- Gross margins as decimals (0.45, not 45).
+- NRR as a percent number (112, not 1.12).
+- Headcount is a raw integer, not millions.
+- If multiple periods are shown, prefer the most recent (TTM / current quarter).
+- Sector must match one of the five enums exactly, or omit.
+- Output the JSON object only. Start with { and end with }.`;
+
+async function claudeExtract(messages, statusEl){
+  const key = state.settings.anthropicKey;
+  if (!key){
+    if (statusEl) statusEl.innerHTML = `<div style="color:var(--warn);font-weight:600">Add your Anthropic API key in <a href="#" onclick="goTab('t8');return false">Settings → 8.2</a> to enable Claude extraction.</div>`;
+    return null;
+  }
+  try {
+    const r = await fetch("https://api.anthropic.com/v1/messages", {
+      method:"POST",
+      headers:{
+        "content-type":"application/json",
+        "x-api-key":key,
+        "anthropic-version":"2023-06-01",
+        "anthropic-dangerous-direct-browser-access":"true"
+      },
+      body: JSON.stringify({ model:"claude-sonnet-4-6", max_tokens:1500, messages })
+    });
+    if (!r.ok){
+      const err = await r.text();
+      console.error("Claude extract error:", err);
+      if (statusEl) statusEl.innerHTML = `<div style="color:var(--bad)">Claude API error (${r.status}) — check console. Likely an invalid key or rate limit.</div>`;
+      return null;
+    }
+    const data = await r.json();
+    const text = (data.content?.[0]?.text || "").trim();
+    const start = text.indexOf("{");
+    const end = text.lastIndexOf("}");
+    if (start === -1 || end === -1) { console.warn("Claude returned non-JSON:", text); return null; }
+    try { return JSON.parse(text.slice(start, end+1)); }
+    catch(e){ console.error("Claude JSON parse error:", e, text); return null; }
+  } catch(e){
+    console.error("Claude extract network error:", e);
+    if (statusEl) statusEl.innerHTML = `<div style="color:var(--bad)">Network error: ${e.message}</div>`;
+    return null;
+  }
+}
+
+async function extractFromImages(base64Images, filename, mediaType){
+  const content = base64Images.map(b64 => ({
+    type:"image",
+    source:{ type:"base64", media_type: mediaType || "image/jpeg", data: b64 }
+  }));
+  content.push({type:"text", text: `Filename for context: ${filename}\n\n${EXTRACT_PROMPT}`});
+  return claudeExtract([{role:"user", content}], document.getElementById("importStatus"));
+}
+
+async function extractFromText(text, filename){
+  const prompt = `Filename for context: ${filename}\n\nDocument text:\n${text.slice(0, 60000)}\n\n${EXTRACT_PROMPT}`;
+  return claudeExtract([{role:"user", content: prompt}], document.getElementById("importStatus"));
+}
+
+function _hitCount(extracted){
+  return Object.keys(extracted||{}).filter(k => k!=="name" && k!=="_period" && k!=="notes").length;
+}
+
+async function ingestImage(file){
+  const status = document.getElementById("importStatus");
+  if (status) status.innerHTML = `<div class="small">Reading <b>${file.name}</b>…</div>`;
+  // Read as data URL, peel off the prefix
+  const dataUrl = await new Promise((res,rej)=>{
+    const r = new FileReader();
+    r.onload = ()=> res(r.result);
+    r.onerror = rej;
+    r.readAsDataURL(file);
+  });
+  const comma = dataUrl.indexOf(",");
+  const b64 = dataUrl.slice(comma+1);
+  const mt = (dataUrl.match(/^data:([^;]+);/)||[])[1] || "image/jpeg";
+  // Claude vision supports png/jpeg/gif/webp directly
+  const supported = ["image/png","image/jpeg","image/gif","image/webp"];
+  const mediaType = supported.includes(mt) ? mt : "image/jpeg";
+  if (status) status.innerHTML = `<div class="small">Sending <b>${file.name}</b> to Claude vision…</div>`;
+  const extracted = await extractFromImages([b64], file.name, mediaType);
+  if (!extracted){
+    if (status && !status.innerHTML.includes("color:var(--bad)") && !status.innerHTML.includes("color:var(--warn)")){
+      status.innerHTML = `<div style="color:var(--warn)">Claude couldn't extract structured data from <b>${file.name}</b>. Try a clearer screenshot or the manual form below.</div>`;
+    }
+    return;
+  }
+  showPDFExtraction(extracted, `[image: ${file.name}]`);
+}
+
+async function ingestText(file){
+  const status = document.getElementById("importStatus");
+  const text = await new Promise((res,rej)=>{
+    const r = new FileReader();
+    r.onload = ()=> res(r.result);
+    r.onerror = rej;
+    r.readAsText(file);
+  });
+  if (status) status.innerHTML = `<div class="small">Scanning <b>${file.name}</b> for financial fields…</div>`;
+  const regexHit = parsePDFText(text, file.name);
+  const hits = _hitCount(regexHit);
+  // Strong regex hit → just show it, skip the API call
+  if (hits >= 3){
+    showPDFExtraction(regexHit, text);
+    return;
+  }
+  // Weak regex + no key → show whatever we got and prompt for a key
+  if (!state.settings.anthropicKey){
+    if (hits > 0) showPDFExtraction(regexHit, text);
+    else if (status) status.innerHTML = `<div style="color:var(--warn)">Regex found 0 recognizable fields in <b>${file.name}</b>. <a href="#" onclick="goTab('t8');return false">Add an Anthropic key</a> to enable Claude text extraction.</div>`;
+    return;
+  }
+  // Fall back to Claude on text — merge with anything regex did pick up
+  if (status) status.innerHTML = `<div class="small">Regex got ${hits} field${hits===1?"":"s"} — asking Claude to recover more from <b>${file.name}</b>…</div>`;
+  const claudeHit = await extractFromText(text, file.name);
+  const merged = {...regexHit, ...(claudeHit||{})};
+  showPDFExtraction(merged, text);
+}
+
+/* ============================================================
    PDF INGEST — client-side via PDF.js
    Extracts text, regex-scans for revenue/EBITDA/debt/headcount,
    and populates the manual-entry form for human review.
-   This is "best-effort" — finance PDFs vary wildly in layout.
+   Falls back to Claude vision when regex comes up empty.
    ============================================================ */
 async function ingestPDF(arrayBuffer, filename){
   const status = document.getElementById("importStatus");
@@ -2833,7 +3227,39 @@ async function ingestPDF(arrayBuffer, filename){
       text += "\n" + lines.join("\n");
     }
 
-    const extracted = parsePDFText(text, filename);
+    let extracted = parsePDFText(text, filename);
+    const hits = _hitCount(extracted);
+
+    // Vision fallback: regex came up nearly empty AND we have a key
+    if (hits < 3 && state.settings.anthropicKey){
+      try {
+        const maxPages = Math.min(pdf.numPages, 5);
+        if (status) status.innerHTML = `<div class="small">Regex found <b>${hits}</b> field${hits===1?"":"s"} — rendering ${maxPages} page${maxPages===1?"":"s"} for Claude vision…</div>`;
+        const images = [];
+        for (let i = 1; i <= maxPages; i++){
+          const page = await pdf.getPage(i);
+          const viewport = page.getViewport({scale: 1.6});
+          const canvas = document.createElement("canvas");
+          canvas.width = viewport.width;
+          canvas.height = viewport.height;
+          const ctx = canvas.getContext("2d");
+          ctx.fillStyle = "#ffffff"; ctx.fillRect(0,0,canvas.width,canvas.height);
+          await page.render({canvasContext: ctx, viewport}).promise;
+          const dataUrl = canvas.toDataURL("image/jpeg", 0.75);
+          images.push(dataUrl.split(",")[1]);
+        }
+        if (status) status.innerHTML = `<div class="small">Sending ${maxPages} page${maxPages===1?"":"s"} of <b>${filename}</b> to Claude vision…</div>`;
+        const visionHit = await extractFromImages(images, filename, "image/jpeg");
+        if (visionHit){
+          // Merge: Claude wins on overlap (regex is often noisy on PDFs)
+          extracted = {...extracted, ...visionHit};
+        }
+      } catch(e){
+        console.error("PDF vision fallback failed:", e);
+        // Fall through to whatever regex got
+      }
+    }
+
     showPDFExtraction(extracted, text);
   } catch (err) {
     if (status) status.innerHTML = `<div style="color:var(--bad)">PDF parse error: ${err.message}</div>`;
@@ -3200,15 +3626,31 @@ document.querySelectorAll(".snav-item").forEach(item=>{
   sections.forEach(s=>io.observe(s));
 })();
 
-/* drag/drop */
+/* drag/drop — multi-file: process sequentially so status panel doesn't race */
 const dz = document.getElementById("dropZone");
 dz.addEventListener("dragover", e=>{ e.preventDefault(); dz.classList.add("over"); });
 dz.addEventListener("dragleave", ()=>dz.classList.remove("over"));
+async function _runBatch(files){
+  const list = [...files];
+  if (!list.length) return;
+  for (let i = 0; i < list.length; i++){
+    if (list.length > 1){
+      const banner = document.getElementById("importStatus");
+      if (banner) banner.innerHTML = `<div class="small" style="color:var(--muted)">File ${i+1} of ${list.length}: <b>${list[i].name}</b>…</div>`;
+    }
+    try { await handleFile(list[i]); }
+    catch(e){ console.error("handleFile error:", e); toast(`Failed: ${list[i].name}`); }
+  }
+}
 dz.addEventListener("drop", e=>{
   e.preventDefault(); dz.classList.remove("over");
-  const f = e.dataTransfer.files[0]; if(f) handleFile(f);
+  _runBatch(e.dataTransfer.files);
 });
-document.getElementById("fileInput").addEventListener("change", e=>{ const f=e.target.files[0]; if(f) handleFile(f); });
+document.getElementById("fileInput").addEventListener("change", e=>{
+  _runBatch(e.target.files);
+  // allow re-selecting the same file
+  e.target.value = "";
+});
 
 /* toast */
 function toast(msg){
