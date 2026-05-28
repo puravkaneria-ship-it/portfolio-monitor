@@ -2033,7 +2033,7 @@ function renderValueCreation(){
           const idx = c.dataIndex;
           if (idx===0 || idx===4) return ` Total: ${fmt$M(wfContribs[idx])}`;
           const v = wfContribs[idx];
-          return ` ${v>=0?'+':''}${fmt$M(v)} → ${fmt$M(Math.max(...c.parsed.y))}`;
+          return ` ${v>=0?'+':''}${fmt$M(v)} → ${fmt$M(Math.max(...c.raw))}`;
         }
       } } },
       scales:{ x: AXIS.catX(), y: AXIS.valY('M','Equity value') } }
